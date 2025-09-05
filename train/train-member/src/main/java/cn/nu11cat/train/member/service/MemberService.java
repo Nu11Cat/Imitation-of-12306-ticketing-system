@@ -10,7 +10,7 @@ public class MemberService {
     @Resource
     private MemberMapper memberMapper;
 
-    public int count() {
-        return memberMapper.count();
+    public long count() {
+        return memberMapper.countByExample(null);
     }
 }
