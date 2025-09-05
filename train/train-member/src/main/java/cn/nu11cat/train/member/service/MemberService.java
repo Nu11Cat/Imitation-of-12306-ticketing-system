@@ -4,6 +4,7 @@ import cn.hutool.core.collection.CollUtil;
 import cn.nu11cat.train.member.domain.Member;
 import cn.nu11cat.train.member.domain.MemberExample;
 import cn.nu11cat.train.member.mapper.MemberMapper;
+import cn.nu11cat.train.member.req.MemberRegisterReq;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +22,11 @@ public class MemberService {
 
     /**
      * 注册新会员
-     * @param mobile
+     * @param req
      * @return
      */
-    public long registerMember(String mobile) {
+    public long registerMember(MemberRegisterReq req) {
+        String mobile = req.getMobile();
         //手机号查重
         MemberExample memberExample = new MemberExample();
         memberExample.createCriteria().andMobileEqualTo(mobile);
