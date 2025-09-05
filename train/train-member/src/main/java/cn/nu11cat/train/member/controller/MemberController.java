@@ -1,6 +1,7 @@
 package cn.nu11cat.train.member.controller;
 
 import cn.nu11cat.train.common.resp.CommonResp;
+import cn.nu11cat.train.member.req.MemberLoginReq;
 import cn.nu11cat.train.member.req.MemberRegisterReq;
 import cn.nu11cat.train.member.req.MemberSendCodeReq;
 import cn.nu11cat.train.member.service.MemberService;
@@ -36,4 +37,9 @@ public class MemberController {
         return new CommonResp<>();
     }
 
+    @PostMapping("/login")
+    public CommonResp<MemberLoginReq> login(@Valid MemberLoginReq req){
+        MemberLoginReq resp = memberService.login(req);
+        return new CommonResp<>(resp);
+    }
 }
