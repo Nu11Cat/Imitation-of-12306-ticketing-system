@@ -12,6 +12,7 @@
         <module>train-member</module>
         <module>common</module>
         <module>geteway</module>
+        <module>generator</module>
     </modules>
     <properties>
         <java.version>17</java.version>
