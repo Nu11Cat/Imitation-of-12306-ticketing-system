@@ -1,14 +1,12 @@
 package cn.nu11cat.train.member.req;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.util.Date;
 
 public class PassengerSaveReq {
     private Long id;
 
-    @NotNull(message = "【会员ID】不可为空")
     private Long memberId;
 
     @NotBlank(message = "【乘车人姓名】不可为空")
