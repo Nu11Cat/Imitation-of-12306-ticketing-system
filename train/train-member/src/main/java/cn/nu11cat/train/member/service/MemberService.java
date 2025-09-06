@@ -6,6 +6,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.nu11cat.train.common.exception.BusinessException;
 import cn.nu11cat.train.common.exception.BusinessExceptionEnum;
+import cn.nu11cat.train.common.util.JwtUtil;
 import cn.nu11cat.train.common.util.SnowUtil;
 import cn.nu11cat.train.member.domain.Member;
 import cn.nu11cat.train.member.domain.MemberExample;
@@ -13,6 +14,7 @@ import cn.nu11cat.train.member.mapper.MemberMapper;
 import cn.nu11cat.train.member.req.MemberLoginReq;
 import cn.nu11cat.train.member.req.MemberRegisterReq;
 import cn.nu11cat.train.member.req.MemberSendCodeReq;
+import cn.nu11cat.train.member.resp.MemberLoginResp;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +90,7 @@ public class MemberService {
      * @param req
      * @return
      */
-    public MemberLoginReq login(MemberLoginReq req) {
+    public MemberLoginResp login(MemberLoginReq req) {
         String mobile = req.getMobile();
         String code = req.getCode();
         //手机号查重
@@ -103,7 +105,11 @@ public class MemberService {
             throw new BusinessException(BusinessExceptionEnum.MEMBER_MOBILE_CODE_ERROR);
         }
 
-        return BeanUtil.copyProperties(membersget, MemberLoginReq.class);
+        MemberLoginResp memberLoginResp = BeanUtil.copyProperties(membersget, MemberLoginResp.class);
+        String token = JwtUtil.createToken(memberLoginResp.getId(), memberLoginResp.getMobile());
+        memberLoginResp.setToken(token);
+        return memberLoginResp;
+
     }
 
     /**
