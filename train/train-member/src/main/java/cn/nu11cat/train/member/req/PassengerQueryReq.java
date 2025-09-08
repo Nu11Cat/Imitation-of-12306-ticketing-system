@@ -1,6 +1,8 @@
 package cn.nu11cat.train.member.req;
 
-public class PassengerQueryReq {
+import cn.nu11cat.train.common.req.PageReq;
+
+public class PassengerQueryReq extends PageReq {
 
     private Long memberId;
 
