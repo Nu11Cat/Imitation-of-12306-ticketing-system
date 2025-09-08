@@ -1,4 +1,4 @@
-package cn.nu11cat.train.business.admin;
+package cn.nu11cat.train.business.controller.admin;
 
 import cn.nu11cat.train.business.req.StationQueryReq;
 import cn.nu11cat.train.business.req.StationSaveReq;
