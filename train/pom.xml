@@ -13,6 +13,7 @@
         <module>common</module>
         <module>generator</module>
         <module>gateway</module>
+        <module>train-business</module>
     </modules>
     <properties>
         <java.version>17</java.version>
