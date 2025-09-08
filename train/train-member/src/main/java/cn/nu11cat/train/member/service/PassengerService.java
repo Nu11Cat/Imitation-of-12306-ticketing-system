@@ -49,6 +49,11 @@ public class PassengerService {
 
     }
 
+    /**
+     * 获取乘车人信息列表
+     * @param req
+     * @return
+     */
     public PageResp<PassengerQueryResp> queryList(PassengerQueryReq req){
         PassengerExample passengerExample = new PassengerExample();
         PassengerExample.Criteria criteria = passengerExample.createCriteria();
@@ -72,4 +77,11 @@ public class PassengerService {
         return pageResp;
     }
 
+    /**
+     * 删除乘车人
+     * @param id
+     */
+    public void delete(Long id) {
+        passengerMapper.deleteByPrimaryKey(id);
+    }
 }
