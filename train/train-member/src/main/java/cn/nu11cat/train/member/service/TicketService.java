@@ -2,6 +2,7 @@ package cn.nu11cat.train.member.service;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateTime;
+import cn.hutool.core.util.ObjUtil;
 import cn.nu11cat.train.common.req.MemberTicketReq;
 import cn.nu11cat.train.common.resp.PageResp;
 import cn.nu11cat.train.common.util.SnowUtil;
@@ -55,6 +56,10 @@ public class TicketService {
         LOG.info("每页条数：{}", req.getSize());
         PageHelper.startPage(req.getPage(), req.getSize());
         List<Ticket> ticketList = ticketMapper.selectByExample(ticketExample);
+
+        if (ObjUtil.isNotNull(req.getMemberId())) {
+            criteria.andMemberIdEqualTo(req.getMemberId());
+        }
 
         PageInfo<Ticket> pageInfo = new PageInfo<>(ticketList);
         LOG.info("总行数：{}", pageInfo.getTotal());
