@@ -234,7 +234,7 @@ public class ConfirmOrderService {
 
             curSell = StrUtil.fillBefore(curSell,'0', endIndex);
 
-            curSell = StrUtil. fillBefore(curSell, '0', sell.length());
+            curSell = StrUtil. fillAfter(curSell, '0', sell.length());
 
             int newSellInt = NumberUtil.binaryToInt(curSell) | NumberUtil.binaryToInt(sell);
             String newSell = NumberUtil.getBinaryStr(newSellInt);
