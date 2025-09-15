@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class TestController {
+
     private static final Logger LOG = LoggerFactory.getLogger(TestController.class);
 
     @Resource
@@ -18,6 +19,6 @@ public class TestController {
     public String hello() {
         String businessHello = businessFeign.hello();
         LOG.info(businessHello);
-        return "Hello World! Batch! " + businessHello;
+        return "Hello World! Batch!2 " + businessHello;
     }
 }
