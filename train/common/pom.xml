@@ -64,6 +64,12 @@
             <artifactId>pagehelper-spring-boot-starter</artifactId>
         </dependency>
 
+        <!--SpringBoot 2.4版本之后 SpringCloud 2020，需要引入该依赖，才能读取bootstrap文件-->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bootstrap</artifactId>
+        </dependency>
+
     </dependencies>
 
 </project>
