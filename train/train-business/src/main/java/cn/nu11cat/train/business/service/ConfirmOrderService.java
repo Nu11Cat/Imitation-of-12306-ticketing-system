@@ -258,9 +258,9 @@ public class ConfirmOrderService {
                  lock.unlock();
              }
         }
-
-        LOG.info("购票流程结束，释放锁！lockKey：{}", lockKey);
-        redisTemplate.delete(lockKey);
+//
+//        LOG.info("购票流程结束，释放锁！lockKey：{}", lockKey);
+//        redisTemplate.delete(lockKey);
 
     }
 
