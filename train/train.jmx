@@ -154,7 +154,7 @@
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">token</stringProp>
-                <stringProp name="Header.value">${__property(globalToken,,)}</stringProp>
+                <stringProp name="Header.value">eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJuYmYiOjE3NTgxNjUwNTcsIm1vYmlsZSI6IjEzMDAwMDAwMDAwIiwiaWQiOjE5NjQxNTM1MDE3MjY2NzQ5NDQsImV4cCI6MTc1ODI1MTQ1NywiaWF0IjoxNzU4MTY1MDU3fQ.q91UxDexXwea4ade8rWjvfzOsl5XB-CUe59F3NVaef8</stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
