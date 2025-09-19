@@ -1,6 +1,7 @@
 package cn.nu11cat.train.business.controller;
 
 import cn.nu11cat.train.business.req.ConfirmOrderDoReq;
+import cn.nu11cat.train.business.service.BeforeConfirmOrderService;
 import cn.nu11cat.train.business.service.ConfirmOrderService;
 import cn.nu11cat.train.common.exception.BusinessExceptionEnum;
 import cn.nu11cat.train.common.resp.CommonResp;
@@ -25,7 +26,7 @@ public class ConfirmOrderController {
     private static final Logger LOG = LoggerFactory.getLogger(ConfirmOrderService.class);
 
     @Resource
-    private ConfirmOrderService confirmOrderService;
+    private BeforeConfirmOrderService beforeConfirmOrderService;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -51,8 +52,8 @@ public class ConfirmOrderController {
             redisTemplate.delete(imageCodeToken);
         }
 
-        confirmOrderService.doConfirm(req);
-        return new CommonResp<>();
+        Long id = beforeConfirmOrderService.beforeDoConfirm(req);
+        return new CommonResp<>(String.valueOf(id));
     }
 
     /** 降级方法，需包含限流方法的所有参数和BlockException参数，且返回值要保持一致
