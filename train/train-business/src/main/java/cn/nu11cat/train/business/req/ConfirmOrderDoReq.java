@@ -55,13 +55,13 @@ public class ConfirmOrderDoReq {
     /**
      * 验证码
      */
-    @NotBlank(message = "【图片验证码】不能为空")
+    //@NotBlank(message = "【图片验证码】不能为空")
     private String imageCode;
 
     /**
      * 图片验证码token
      */
-    @NotBlank(message = "【图片验证码】参数非法")
+    //@NotBlank(message = "【图片验证码】参数非法")
     private String imageCodeToken;
 
     /**

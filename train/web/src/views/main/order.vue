@@ -53,8 +53,10 @@
   <a-modal v-model:visible="visible" title="请核对以下信息"
            style="top: 50px; width: 800px"
            ok-text="确认" cancel-text="取消"
-           @ok="showImageCodeModal">
+           @ok="handleOk">
+<!--    @ok="showImageCodeModal">-->
 <!--    暂时关闭第一层验证-->
+    <!--    暂时关闭第二层验证-->
     <div class="order-tickets">
       <a-row class="order-tickets-header" v-if="tickets.length > 0">
         <a-col :span="3">乘客</a-col>
@@ -140,19 +142,19 @@
     <a-button type="danger" block @click="validFirstImageCode">提交验证码</a-button>
   </a-modal>
 
-  <a-modal v-model:visible="lineModalVisible" title="排队购票" :footer="null" :maskClosable="false" :closable="false"
-           style="top: 50px; width: 400px">
-    <div class="book-line">
-      <div v-show="confirmOrderLineCount < 0">
-        <loading-outlined /> 系统正在处理中...
-      </div>
-      <div v-show="confirmOrderLineCount >= 0">
-        <loading-outlined /> 您前面还有{{confirmOrderLineCount}}位用户在购票，排队中，请稍候
-      </div>
-    </div>
-    <br/>
-    <a-button type="danger" @click="onCancelOrder">取消购票</a-button>
-  </a-modal>
+<!--  <a-modal v-model:visible="lineModalVisible" title="排队购票" :footer="null" :maskClosable="false" :closable="false"-->
+<!--           style="top: 50px; width: 400px">-->
+<!--    <div class="book-line">-->
+<!--      <div v-show="confirmOrderLineCount < 0">-->
+<!--        <loading-outlined /> 系统正在处理中...-->
+<!--      </div>-->
+<!--      <div v-show="confirmOrderLineCount >= 0">-->
+<!--        <loading-outlined /> 您前面还有{{confirmOrderLineCount}}位用户在购票，排队中，请稍候-->
+<!--      </div>-->
+<!--    </div>-->
+<!--    <br/>-->
+<!--    <a-button type="danger" @click="onCancelOrder">取消购票</a-button>-->
+<!--  </a-modal>-->
 </template>
 
 <script>
@@ -340,10 +342,10 @@ export default defineComponent({
     };
 
     const handleOk = () => {
-      if (Tool.isEmpty(imageCode.value)) {
-        notification.error({description: '验证码不能为空'});
-        return;
-      }
+      // if (Tool.isEmpty(imageCode.value)) {
+      //   notification.error({description: '验证码不能为空'});
+      //   return;
+      // }
 
       console.log("选好的座位：", chooseSeatObj.value);
 
@@ -389,7 +391,7 @@ export default defineComponent({
           imageCodeModalVisible.value = false;
           lineModalVisible.value = true;
           confirmOrderId.value = data.content;
-          queryLineCount();
+          //queryLineCount();
         } else {
           notification.error({description: data.message});
         }
@@ -400,39 +402,39 @@ export default defineComponent({
     // 确认订单后定时查询
     let queryLineCountInterval;
 
-    // 定时查询订单结果/排队数量
-    const queryLineCount = () => {
-      confirmOrderLineCount.value = -1;
-      queryLineCountInterval = setInterval(function () {
-        axios.get("/business/confirm-order/query-line-count/" + confirmOrderId.value).then((response) => {
-          let data = response.data;
-          if (data.success) {
-            let result = data.content;
-            switch (result) {
-              case -1 :
-                notification.success({description: "购票成功！"});
-                lineModalVisible.value = false;
-                clearInterval(queryLineCountInterval);
-                break;
-              case -2:
-                notification.error({description: "购票失败！"});
-                lineModalVisible.value = false;
-                clearInterval(queryLineCountInterval);
-                break;
-              case -3:
-                notification.error({description: "抱歉，没票了！"});
-                lineModalVisible.value = false;
-                clearInterval(queryLineCountInterval);
-                break;
-              default:
-                confirmOrderLineCount.value = result;
-            }
-          } else {
-            notification.error({description: data.message});
-          }
-        });
-      }, 500);
-    };
+    // // 定时查询订单结果/排队数量
+    // const queryLineCount = () => {
+    //   confirmOrderLineCount.value = -1;
+    //   queryLineCountInterval = setInterval(function () {
+    //     axios.get("/business/confirm-order/query-line-count/" + confirmOrderId.value).then((response) => {
+    //       let data = response.data;
+    //       if (data.success) {
+    //         let result = data.content;
+    //         switch (result) {
+    //           case -1 :
+    //             notification.success({description: "购票成功！"});
+    //             lineModalVisible.value = false;
+    //             clearInterval(queryLineCountInterval);
+    //             break;
+    //           case -2:
+    //             notification.error({description: "购票失败！"});
+    //             lineModalVisible.value = false;
+    //             clearInterval(queryLineCountInterval);
+    //             break;
+    //           case -3:
+    //             notification.error({description: "抱歉，没票了！"});
+    //             lineModalVisible.value = false;
+    //             clearInterval(queryLineCountInterval);
+    //             break;
+    //           default:
+    //             confirmOrderLineCount.value = result;
+    //         }
+    //       } else {
+    //         notification.error({description: data.message});
+    //       }
+    //     });
+    //   }, 500);
+    // };
 
     /* ------------------- 第二层验证码 --------------------- */
     const imageCodeModalVisible = ref();

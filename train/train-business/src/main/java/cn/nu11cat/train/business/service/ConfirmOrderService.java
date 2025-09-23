@@ -183,6 +183,7 @@ public class ConfirmOrderService {
             confirmOrder.setStatus(ConfirmOrderStatusEnum. INIT.getCode());
             confirmOrder.setTickets(JSON. toJSONString (tickets));
             confirmOrderMapper.insert(confirmOrder);
+
             //查出余票记录,需要得到真实的库存
             DailyTrainTicket dailyTrainTicket = dailyTrainTicketService.selectByUnique(date, trainCode, start, end);
             LOG.info("查出余票记录:{}", dailyTrainTicket);
@@ -242,7 +243,7 @@ public class ConfirmOrderService {
                             finalSeatList,
                             date,
                             trainCode,
-                            ticketReq0.getSeatTypeCode(),
+                            ticketReq.getSeatTypeCode(),
                             null,
                             null,
                             dailyTrainTicket.getStartIndex(),
@@ -339,7 +340,7 @@ public class ConfirmOrderService {
                 if (CollUtil.isNotEmpty(offsetList)) {
                     LOG.info("有偏移值：{}，校验便宜的座位是否可选",  offsetList);
                     for (int j = 1; j < offsetList.size(); j++) {
-                        Integer offset = offsetList.get(i);
+                        Integer offset = offsetList.get(j);
                         // 座位在库的索引是从1开始
                         // int nextIndex = seatIndex + offset - 1;
                         int nextIndex = i + offset;
@@ -352,7 +353,7 @@ public class ConfirmOrderService {
                         }
 
                         DailyTrainSeat nextDailyTrainSeat = seatList.get(nextIndex);
-                        boolean isChooseNext = calSell(dailyTrainSeat, startIndex, endIndex);
+                        boolean isChooseNext = calSell(nextDailyTrainSeat, startIndex, endIndex);
                         if (isChooseNext) {
                             LOG.info("座位{}被选中", nextDailyTrainSeat.getCarriageSeatIndex());
                             getSeatList.add(nextDailyTrainSeat);
@@ -400,7 +401,7 @@ public class ConfirmOrderService {
             LOG.info("座位{}被选中,原售票信息:{},车站区间:{}~{},即:{},最终售票信息:{}"
                     , dailyTrainSeat.getCarriageSeatIndex(), sell, startIndex,
                     endIndex, curSell, newSell);
-            dailyTrainSeat. setSell(newSell);
+            dailyTrainSeat.setSell(newSell);
             return true;
         }
     }
@@ -415,7 +416,7 @@ public class ConfirmOrderService {
                     if (countLeft < 0) {
                         throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_TICKET_COUNT_ERROR);
                     }
-                        dailyTrainTicket.setYdz(countLeft);
+                    dailyTrainTicket.setYdz(countLeft);
                 }
                 case EDZ -> {
                     int countLeft = dailyTrainTicket.getEdz() - 1;
