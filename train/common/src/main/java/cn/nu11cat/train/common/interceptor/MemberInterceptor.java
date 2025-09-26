@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 拦截器：Spring框架特有的，常用于登录校验，权限校验，请求日志打印
+ * 拦截器：Spring框架特有的，常用于登录校验，权限校验，请求日志打印.
  */
 @Component
 public class MemberInterceptor implements HandlerInterceptor {
