@@ -2,7 +2,7 @@ package cn.nu11cat.train.member.service.impl;
 
 import cn.nu11cat.train.member.entity.Ticket;
 import cn.nu11cat.train.member.mapper.TicketMapper;
-import cn.nu11cat.train.member.service.ITicketService;
+import com.baomidou.mybatisplus.extension.service.IService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +15,6 @@ import org.springframework.stereotype.Service;
  * @since 2025-09-27
  */
 @Service
-public class TicketServiceImpl extends ServiceImpl<TicketMapper, Ticket> implements ITicketService {
+public class TicketServiceImpl extends ServiceImpl<TicketMapper, Ticket> implements IService<Ticket> {
 
 }

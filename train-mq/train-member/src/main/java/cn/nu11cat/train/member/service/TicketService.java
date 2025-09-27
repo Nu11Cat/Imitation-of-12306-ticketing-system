@@ -11,6 +11,6 @@ import com.baomidou.mybatisplus.extension.service.IService;
  * @author nu11cat
  * @since 2025-09-27
  */
-public interface ITicketService extends IService<Ticket> {
+public interface TicketService extends IService<Ticket> {
 
 }

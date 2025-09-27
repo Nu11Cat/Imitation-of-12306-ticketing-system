@@ -39,6 +39,9 @@ public class CodeGenerator {
                         .enableLombok()
                         .controllerBuilder()
                         .enableRestStyle()
+                        .serviceBuilder()
+                        .formatServiceFileName("%sService")       // 关键：接口不加 I 前缀
+                        .formatServiceImplFileName("%sServiceImpl") // 实现类正常
                 )
                 .templateEngine(new FreemarkerTemplateEngine()) // 使用 freemarker 模板
                 .execute();
