@@ -29,7 +29,7 @@ public class CodeGenerator {
                         .mapper("mapper")
                         .controller("controller")
                         .pathInfo(Collections.singletonMap(OutputFile.xml,
-                                System.getProperty("user.dir") + "/src/main/resources/mapper")) // mapper.xml 输出路径
+                                System.getProperty("user.dir") + "/train-member/src/main/resources/mapper")) // mapper.xml 输出路径
                 )
                 // 策略配置
                 .strategyConfig(builder -> builder
