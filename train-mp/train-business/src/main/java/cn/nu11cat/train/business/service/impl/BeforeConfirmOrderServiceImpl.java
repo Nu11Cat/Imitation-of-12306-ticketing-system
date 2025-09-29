@@ -15,6 +15,8 @@ import cn.nu11cat.train.common.context.LoginMemberContext;
 import cn.nu11cat.train.common.exception.BusinessException;
 import cn.nu11cat.train.common.exception.BusinessExceptionEnum;
 import cn.nu11cat.train.common.util.SnowUtil;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
@@ -44,7 +46,7 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
     @Resource
     private ConfirmOrderService confirmOrderService;
 
-//    @SentinelResource(value = "beforeDoConfirm", blockHandler = "beforeDoConfirmBlock")
+    @SentinelResource(value = "beforeDoConfirm", blockHandler = "beforeDoConfirmBlock")
     @Override
     public Long beforeDoConfirm(ConfirmOrderDoReq req) {
         Long id = null;
@@ -103,9 +105,13 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
         return id;
     }
 
-//    @Override
-//    public void beforeDoConfirmBlock(ConfirmOrderDoReq req, BlockException e) {
-//        LOG.info("购票请求被限流：{}", req);
-//        throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_FLOW_EXCEPTION);
-//    }
+    /**
+     * 降级方法，需包含限流方法的所有参数和BlockException参数
+     * @param req
+     * @param e
+     */
+    public void beforeDoConfirmBlock(ConfirmOrderDoReq req, BlockException e) {
+        LOG.info("购票请求被限流：{}", req);
+        throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_FLOW_EXCEPTION);
+    }
 }
