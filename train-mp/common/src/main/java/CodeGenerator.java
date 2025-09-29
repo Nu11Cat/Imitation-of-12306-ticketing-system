@@ -9,31 +9,31 @@ public class CodeGenerator {
 
     public static void main(String[] args) {
         FastAutoGenerator.create(
-                        "jdbc:mysql://localhost:3306/train-batch?serverTimezone=Asia/Shanghai",
+                        "jdbc:mysql://localhost:3306/train-business?serverTimezone=Asia/Shanghai",
                         "train",
                         "123456"
                 )
                 // 全局配置
                 .globalConfig(builder -> builder
                         .author("nu11cat")         // 作者
-                        .enableSwagger()          // 开启 swagger 注解
+                        //.enableSwagger()          // 开启 swagger 注解
                         .fileOverride()           // 覆盖已生成文件
-                        .outputDir(System.getProperty("user.dir") + "/train-batch/src/main/java") // 输出路径
+                        .outputDir(System.getProperty("user.dir") + "/train-business/src/main/java") // 输出路径
                 )
                 // 包配置
                 .packageConfig(builder -> builder
-                        .parent("cn.nu11cat.train.batch") // 父包
+                        .parent("cn.nu11cat.train.business") // 父包
                         .entity("entity")
                         .service("service")
                         .serviceImpl("service.impl")
                         .mapper("mapper")
                         .controller("controller")
                         .pathInfo(Collections.singletonMap(OutputFile.xml,
-                                System.getProperty("user.dir") + "/train-batch/src/main/resources/mapper")) // mapper.xml 输出路径
+                                System.getProperty("user.dir") + "/train-business/src/main/resources/mapper")) // mapper.xml 输出路径
                 )
                 // 策略配置
                 .strategyConfig(builder -> builder
-                        .addInclude("ticket") // 生成的表
+                        .addInclude("station") // 生成的表
                         .addTablePrefix("")      // 表前缀
                         .entityBuilder()
                         .enableLombok()
