@@ -1,10 +1,12 @@
 package cn.nu11cat.train.business.req;
 
 import cn.nu11cat.train.common.req.PageReq;
+import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.util.Date;
 
+@Data
 public class DailyTrainStationQueryReq extends PageReq {
 
     /**
@@ -18,27 +20,4 @@ public class DailyTrainStationQueryReq extends PageReq {
      */
     private String trainCode;
 
-    public Date getDate() {
-        return date;
-    }
-
-    public void setDate(Date date) {
-        this.date = date;
-    }
-
-    public String getTrainCode() {
-        return trainCode;
-    }
-
-    public void setTrainCode(String trainCode) {
-        this.trainCode = trainCode;
-    }
-
-    @Override
-    public String toString() {
-        return "DailyTrainStationQueryReq{" +
-                "date=" + date +
-                ", trainCode='" + trainCode + '\'' +
-                "} " + super.toString();
-    }
 }

@@ -1,8 +1,11 @@
 package cn.nu11cat.train.common.resp;
 
+import lombok.Data;
+
 import java.io.Serializable;
 import java.util.List;
 
+@Data
 public class PageResp<T> implements Serializable {
 
     /**
@@ -15,27 +18,4 @@ public class PageResp<T> implements Serializable {
      */
     private List<T> list;
 
-    public Long getTotal() {
-        return total;
-    }
-
-    public void setTotal(Long total) {
-        this.total = total;
-    }
-
-    public List<T> getList() {
-        return list;
-    }
-
-    public void setList(List<T> list) {
-        this.list = list;
-    }
-
-    @Override
-    public String toString() {
-        return "PageResp{" +
-                "total=" + total +
-                ", list=" + list +
-                '}';
-    }
 }
