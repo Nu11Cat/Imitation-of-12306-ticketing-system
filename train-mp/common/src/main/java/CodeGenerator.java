@@ -27,18 +27,20 @@ public class CodeGenerator {
                         .service("service")
                         .serviceImpl("service.impl")
                         .mapper("mapper")
-                        .controller("controller")
+                        //.controller("controller")
+                        .controller("controller.admin")
                         .pathInfo(Collections.singletonMap(OutputFile.xml,
                                 System.getProperty("user.dir") + "/train-business/src/main/resources/mapper")) // mapper.xml 输出路径
                 )
                 // 策略配置
                 .strategyConfig(builder -> builder
-                        .addInclude("train") // 生成的表
+                        .addInclude("train_carriage") // 生成的表
                         .addTablePrefix("")      // 表前缀
                         .entityBuilder()
                         .enableLombok()
                         .controllerBuilder()
                         .enableRestStyle()
+                        .formatFileName("%sAdminController") // 改成 AdminController
                         .serviceBuilder()
                         .formatServiceFileName("%sService")       // 关键：接口不加 I 前缀
                         .formatServiceImplFileName("%sServiceImpl") // 实现类正常
