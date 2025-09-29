@@ -33,7 +33,7 @@ public class CodeGenerator {
                 )
                 // 策略配置
                 .strategyConfig(builder -> builder
-                        .addInclude("station") // 生成的表
+                        .addInclude("train") // 生成的表
                         .addTablePrefix("")      // 表前缀
                         .entityBuilder()
                         .enableLombok()
