@@ -27,4 +27,6 @@ public interface TrainService extends IService<Train> {
     void delete(Long id);
 
     void save(@Valid TrainSaveReq req);
+
+    List<Train> selectAll();
 }

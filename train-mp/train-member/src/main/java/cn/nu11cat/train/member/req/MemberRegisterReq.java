@@ -1,9 +1,7 @@
 package cn.nu11cat.train.member.req;
 
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
 
-@Data
 public class MemberRegisterReq {
 
     @NotBlank(message = "【手机号】不可为空")
@@ -15,6 +13,13 @@ public class MemberRegisterReq {
 
     public void setMobile(String mobile) {
         this.mobile = mobile;
+    }
+
+    @Override
+    public String toString() {
+        return "MemberRegisterReq{" +
+                "mobile='" + mobile + '\'' +
+                '}';
     }
 
 }

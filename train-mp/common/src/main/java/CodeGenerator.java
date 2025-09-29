@@ -34,7 +34,7 @@ public class CodeGenerator {
                 )
                 // 策略配置
                 .strategyConfig(builder -> builder
-                        .addInclude("train_seat") // 生成的表
+                        .addInclude("sk_token") // 生成的表
                         .addTablePrefix("")      // 表前缀
                         .entityBuilder()
                         .enableLombok()

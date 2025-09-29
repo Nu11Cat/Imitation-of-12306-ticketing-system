@@ -1,13 +1,6 @@
 package cn.nu11cat.train.business.entity;
 
-import com.baomidou.mybatisplus.annotation.TableName;
-import java.io.Serializable;
-import java.time.LocalDateTime;
 import java.util.Date;
-
-import lombok.Getter;
-import lombok.Setter;
-
 /**
  * <p>
  * 车站
@@ -16,40 +9,80 @@ import lombok.Setter;
  * @author nu11cat
  * @since 2025-09-29
  */
-@Getter
-@Setter
-@TableName("station")
-public class Station implements Serializable {
-
-    private static final long serialVersionUID = 1L;
-
-    /**
-     * id
-     */
+public class Station {
     private Long id;
 
-    /**
-     * 站名
-     */
     private String name;
 
-    /**
-     * 站名拼音
-     */
     private String namePinyin;
 
-    /**
-     * 站名拼音首字母
-     */
     private String namePy;
 
-    /**
-     * 新增时间
-     */
     private Date createTime;
 
-    /**
-     * 修改时间
-     */
     private Date updateTime;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getNamePinyin() {
+        return namePinyin;
+    }
+
+    public void setNamePinyin(String namePinyin) {
+        this.namePinyin = namePinyin;
+    }
+
+    public String getNamePy() {
+        return namePy;
+    }
+
+    public void setNamePy(String namePy) {
+        this.namePy = namePy;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public Date getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(Date updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", id=").append(id);
+        sb.append(", name=").append(name);
+        sb.append(", namePinyin=").append(namePinyin);
+        sb.append(", namePy=").append(namePy);
+        sb.append(", createTime=").append(createTime);
+        sb.append(", updateTime=").append(updateTime);
+        sb.append("]");
+        return sb.toString();
+    }
 }

@@ -8,6 +8,8 @@ import cn.nu11cat.train.common.resp.PageResp;
 import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.validation.Valid;
 
+import java.util.List;
+
 /**
  * <p>
  * 座位 服务类
@@ -25,4 +27,6 @@ public interface TrainSeatService extends IService<TrainSeat> {
     void delete(Long id);
 
     void genTrainSeat(String trainCode);
+
+    List<TrainSeat> selectByTrainCode(String trainCode);
 }

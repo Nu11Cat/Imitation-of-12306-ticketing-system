@@ -90,11 +90,13 @@
                 <version>3.0.0</version>
             </dependency>
 
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>1.18.30</version>
-            </dependency>
+<!--            <dependency>-->
+<!--                <groupId>org.projectlombok</groupId>-->
+<!--                <artifactId>lombok</artifactId>-->
+<!--                <version>1.18.30</version> &lt;!&ndash; 可用最新版本 &ndash;&gt;-->
+<!--                <scope>provided</scope>-->
+<!--            </dependency>-->
+
 
             <!-- 集成mysql连接 -->
             <dependency>
@@ -141,11 +143,11 @@
                 </exclusions>
             </dependency>
 
-<!--            <dependency>-->
-<!--                <groupId>org.apache.rocketmq</groupId>-->
-<!--                <artifactId>rocketmq-spring-boot-starter</artifactId>-->
-<!--                <version>2.2.3</version>-->
-<!--            </dependency>-->
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version>2.2.3</version>
+            </dependency>
 
             <dependency>
                 <groupId>io.swagger.core.v3</groupId>

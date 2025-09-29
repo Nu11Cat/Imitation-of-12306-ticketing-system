@@ -1,17 +1,35 @@
 package cn.nu11cat.train.member.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-
-@Data
-@TableName("`member`") // 对应数据库表名
 public class Member {
-
-    @TableId(type = IdType.ASSIGN_ID) // 使用雪花算法生成全局唯一ID
     private Long id;
 
-    private String mobile; // 手机号，唯一约束由数据库控制
+    private String mobile;
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getMobile() {
+        return mobile;
+    }
+
+    public void setMobile(String mobile) {
+        this.mobile = mobile;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(getClass().getSimpleName());
+        sb.append(" [");
+        sb.append("Hash = ").append(hashCode());
+        sb.append(", id=").append(id);
+        sb.append(", mobile=").append(mobile);
+        sb.append("]");
+        return sb.toString();
+    }
 }
