@@ -15,11 +15,18 @@ public class DailyTrainSeat {
 
     private Integer carriageIndex;
 
-    @TableField("`row`")
-    private String row;
+//    @TableField("`row`")
+//    private String row;
+//
+//    @TableField("`col`")
+//    private String col;
 
-    @TableField("`col`")
-    private String col;
+    @TableField("row_index")
+    private String rowIndex;
+
+    @TableField("col_index")
+    private String colIndex;
+
 
     private String seatType;
 

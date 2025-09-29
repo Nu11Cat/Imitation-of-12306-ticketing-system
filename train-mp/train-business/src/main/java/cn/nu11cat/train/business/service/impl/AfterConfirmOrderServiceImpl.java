@@ -12,6 +12,8 @@ import cn.nu11cat.train.business.req.ConfirmOrderTicketReq;
 import cn.nu11cat.train.business.service.AfterConfirmOrderService;
 import cn.nu11cat.train.common.req.MemberTicketReq;
 import cn.nu11cat.train.common.resp.CommonResp;
+import io.seata.core.context.RootContext;
+import io.seata.spring.annotation.GlobalTransactional;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,14 +42,14 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
     /**
      * 选中座位后事务处理
      */
-//    @GlobalTransactional
+    @GlobalTransactional
     @Override
     public void afterDoConfirm(DailyTrainTicket dailyTrainTicket,
                                List<DailyTrainSeat> finalSeatList,
                                List<ConfirmOrderTicketReq> tickets,
                                ConfirmOrder confirmOrder) throws Exception {
 
-//        LOG.info("seata全局事务ID: {}", RootContext.getXID());
+        LOG.info("seata全局事务ID: {}", RootContext.getXID());
 
         for (int j = 0; j < finalSeatList.size(); j++) {
             DailyTrainSeat dailyTrainSeat = finalSeatList.get(j);
@@ -100,8 +102,8 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             memberTicketReq.setTrainDate(dailyTrainTicket.getDate());
             memberTicketReq.setTrainCode(dailyTrainTicket.getTrainCode());
             memberTicketReq.setCarriageIndex(dailyTrainSeat.getCarriageIndex());
-            memberTicketReq.setSeatRow(dailyTrainSeat.getRow());
-            memberTicketReq.setSeatCol(dailyTrainSeat.getCol());
+            memberTicketReq.setSeatRow(dailyTrainSeat.getRowIndex());
+            memberTicketReq.setSeatCol(dailyTrainSeat.getColIndex());
             memberTicketReq.setStartStation(dailyTrainTicket.getStart());
             memberTicketReq.setStartTime(dailyTrainTicket.getStartTime());
             memberTicketReq.setEndStation(dailyTrainTicket.getEnd());
@@ -117,10 +119,10 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             confirmOrderMapper.updateById(confirmOrder);
 
             // 模拟调用方出现异常
-            // Thread.sleep(10000);
-            // if (1 == 1) {
-            //     throw new Exception("测试异常");
-            // }
+//             Thread.sleep(10000);
+//             if (1 == 1) {
+//                 throw new Exception("测试异常");
+//             }
         }
     }
 }

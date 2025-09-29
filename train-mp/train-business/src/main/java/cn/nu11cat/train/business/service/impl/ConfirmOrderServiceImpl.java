@@ -290,7 +290,7 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
 
             for (int i = 0; i < seatList.size(); i++) {
                 DailyTrainSeat dailyTrainSeat = seatList.get(i);
-                String col = dailyTrainSeat.getCol();
+                String col = dailyTrainSeat.getColIndex();
                 Integer seatIndex = dailyTrainSeat.getCarriageSeatIndex();
 
                 boolean alreadyChooseFlag = finalSeatList.stream().anyMatch(f -> f.getId().equals(dailyTrainSeat.getId()));
