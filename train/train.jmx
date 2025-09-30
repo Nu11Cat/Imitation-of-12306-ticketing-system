@@ -20,7 +20,7 @@
         </elementProp>
       </ThreadGroup>
       <hashTree>
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="会员登录">
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="会员登录" enabled="true">
           <stringProp name="HTTPSampler.domain">127.0.0.1</stringProp>
           <stringProp name="HTTPSampler.port">8000</stringProp>
           <stringProp name="HTTPSampler.path">/member/member/login</stringProp>
@@ -42,7 +42,7 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP信息头管理器">
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP信息头管理器" enabled="true">
             <collectionProp name="HeaderManager.headers">
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Content-Type</stringProp>
@@ -51,7 +51,7 @@
             </collectionProp>
           </HeaderManager>
           <hashTree/>
-          <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="查看结果树">
+          <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="查看结果树" enabled="true">
             <boolProp name="ResultCollector.error_logging">false</boolProp>
             <objProp>
               <name>saveConfig</name>
@@ -88,13 +88,13 @@
             <stringProp name="filename"></stringProp>
           </ResultCollector>
           <hashTree/>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON提取器">
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON提取器" enabled="true">
             <stringProp name="JSONPostProcessor.referenceNames">token</stringProp>
             <stringProp name="JSONPostProcessor.jsonPathExprs">$.content.token</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers"></stringProp>
           </JSONPostProcessor>
           <hashTree/>
-          <BeanShellPostProcessor guiclass="TestBeanGUI" testclass="BeanShellPostProcessor" testname="BeanShell 后置处理程序">
+          <BeanShellPostProcessor guiclass="TestBeanGUI" testclass="BeanShellPostProcessor" testname="BeanShell 后置处理程序" enabled="true">
             <stringProp name="filename"></stringProp>
             <stringProp name="parameters">${token}</stringProp>
             <boolProp name="resetInterpreter">false</boolProp>
@@ -104,12 +104,12 @@
         </hashTree>
       </hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="线程组">
-        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.num_threads">300</intProp>
         <intProp name="ThreadGroup.ramp_time">1</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="循环控制器">
-          <stringProp name="LoopController.loops">1</stringProp>
+          <intProp name="LoopController.loops">-1</intProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
@@ -127,18 +127,21 @@
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
                 <stringProp name="Argument.value">{&#xd;
-  &quot;dailyTrainTicketId&quot;:1966145813461733376,&#xd;
-  &quot;date&quot;:1758729600000,&#xd;
-  &quot;end&quot;:&quot;南京&quot;,&#xd;
-  &quot;start&quot;:&quot;北京&quot;,&#xd;
-  &quot;tickets&quot;: [{&#xd;
-    &quot;passengerId&quot;:1964153501726674944,&#xd;
-    &quot;passengerIdCard&quot;:&quot;12332100001&quot;,&#xd;
-    &quot;passengerName&quot;:&quot;test3&quot;,&#xd;
-    &quot;passengerType&quot;:&quot;1&quot;,&#xd;
-    &quot;seatTypeCode&quot;:&quot;2&quot;&#xd;
-  }],&#xd;
-  &quot;trainCode&quot;:&quot;G1&quot;&#xd;
+  &quot;dailyTrainTicketId&quot;: 1972903198092038144,&#xd;
+  &quot;date&quot;: 1760025600000,&#xd;
+  &quot;end&quot;: &quot;南京&quot;,&#xd;
+  &quot;lineNumber&quot;: 5,&#xd;
+  &quot;start&quot;: &quot;北京&quot;,&#xd;
+  &quot;trainCode&quot;: &quot;G1&quot;,&#xd;
+  &quot;tickets&quot;: [&#xd;
+    {&#xd;
+      &quot;passengerId&quot;: 1971813113686790144,&#xd;
+      &quot;passengerIdCard&quot;: &quot;1562000009&quot;,&#xd;
+      &quot;passengerName&quot;: &quot;text9&quot;,&#xd;
+      &quot;passengerType&quot;: &quot;1&quot;,&#xd;
+      &quot;seatTypeCode&quot;: &quot;1&quot;&#xd;
+    }&#xd;
+  ]&#xd;
 }</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
@@ -154,7 +157,7 @@
               </elementProp>
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">token</stringProp>
-                <stringProp name="Header.value">eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJuYmYiOjE3NTgxNjUwNTcsIm1vYmlsZSI6IjEzMDAwMDAwMDAwIiwiaWQiOjE5NjQxNTM1MDE3MjY2NzQ5NDQsImV4cCI6MTc1ODI1MTQ1NywiaWF0IjoxNzU4MTY1MDU3fQ.q91UxDexXwea4ade8rWjvfzOsl5XB-CUe59F3NVaef8</stringProp>
+                <stringProp name="Header.value">eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJuYmYiOjE3NTkyMTg0NzksIm1vYmlsZSI6IjEzMDAwMDAwMDAwIiwiaWQiOjE5NjQxNTM1MDE3MjY2NzQ5NDQsImV4cCI6MTc1OTMwNDg3OSwiaWF0IjoxNzU5MjE4NDc5fQ.iiNAczcZEXKXDb9INc_PdphplhtKUupjNS8MAHIkePE</stringProp>
               </elementProp>
             </collectionProp>
           </HeaderManager>
@@ -197,6 +200,43 @@
           </ResultCollector>
           <hashTree/>
         </hashTree>
+        <ResultCollector guiclass="StatVisualizer" testclass="ResultCollector" testname="聚合报告">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
       </hashTree>
     </hashTree>
   </hashTree>

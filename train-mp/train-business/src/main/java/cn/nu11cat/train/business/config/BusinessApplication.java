@@ -33,7 +33,7 @@ public class BusinessApplication {
         LOG.info("启动成功！！");
         LOG.info("测试地址: \thttp://127.0.0.1:{}{}/hello", env.getProperty("server.port"), env.getProperty("server.servlet.context-path"));
          // 限流规则
-         initFlowRules();
+         //initFlowRules();
          LOG.info("已定义限流规则");
     }
 
