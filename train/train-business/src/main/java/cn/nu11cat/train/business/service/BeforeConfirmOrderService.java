@@ -4,7 +4,6 @@ import cn.hutool.core.date.DateTime;
 import cn.nu11cat.train.business.domain.ConfirmOrder;
 import cn.nu11cat.train.business.dto.ConfirmOrderMQDto;
 import cn.nu11cat.train.business.enums.ConfirmOrderStatusEnum;
-import cn.nu11cat.train.business.enums.RocketMQTopicEnum;
 import cn.nu11cat.train.business.mapper.ConfirmOrderMapper;
 import cn.nu11cat.train.business.req.ConfirmOrderDoReq;
 import cn.nu11cat.train.business.req.ConfirmOrderTicketReq;
@@ -88,9 +87,9 @@ public class BeforeConfirmOrderService {
             confirmOrderMQDto.setLogId(MDC.get("LOG_ID"));
             String reqJson = JSON.toJSONString(confirmOrderMQDto);
             //
-             LOG.info("排队购票，发送mq开始，消息：{}", reqJson);
-             rocketMQTemplate.convertAndSend(RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
-             LOG.info("排队购票，发送mq结束");
+//             LOG.info("排队购票，发送mq开始，消息：{}", reqJson);
+//             rocketMQTemplate.convertAndSend(RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
+//             LOG.info("排队购票，发送mq结束");
             confirmOrderService.doConfirm(confirmOrderMQDto);
             //
             id = confirmOrder.getId();

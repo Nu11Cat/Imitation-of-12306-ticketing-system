@@ -97,7 +97,7 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
             LOG.info("排队购票，发送mq结束");
 
             // 调用确认订单服务
-            confirmOrderService.doConfirm(confirmOrderMQDto);
+            //confirmOrderService.doConfirm(confirmOrderMQDto);
 
             id = confirmOrder.getId();
 //        }
