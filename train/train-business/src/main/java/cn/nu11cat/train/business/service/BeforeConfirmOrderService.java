@@ -48,7 +48,7 @@ public class BeforeConfirmOrderService {
     public Long beforeDoConfirm(ConfirmOrderDoReq req) {
         Long id = null;
         // 根据前端传值，加入排队人数
-        for (int i = 0; i < req.getLineNumber() + 1; i++) {
+//        for (int i = 0; i < req.getLineNumber() + 1; i++) {
             req.setMemberId(LoginMemberContext.getId());
 //            // 校验令牌余量
 //            boolean validSkToken = skTokenService.validSkToken(req.getDate(), req.getTrainCode(), LoginMemberContext.getId());
@@ -94,7 +94,7 @@ public class BeforeConfirmOrderService {
             confirmOrderService.doConfirm(confirmOrderMQDto);
             //
             id = confirmOrder.getId();
-        }
+//        }
         return id;
     }
 
