@@ -110,8 +110,8 @@ public class TrainSeatServiceImpl extends ServiceImpl<TrainSeatMapper, TrainSeat
                     trainSeat.setId(SnowUtil.getSnowflakeNextId());
                     trainSeat.setTrainCode(trainCode);
                     trainSeat.setCarriageIndex(trainCarriage.getIndex());
-                    trainSeat.setRow(StrUtil.fillBefore(String.valueOf(row), '0', 2));
-                    trainSeat.setCol(seatColEnum.getCode());
+                    trainSeat.setRowIndex(StrUtil.fillBefore(String.valueOf(row), '0', 2));
+                    trainSeat.setColIndex(seatColEnum.getCode());
                     trainSeat.setSeatType(seatType);
                     trainSeat.setCarriageSeatIndex(seatIndex++);
                     trainSeat.setCreateTime(now);

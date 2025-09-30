@@ -21,10 +21,10 @@ public class DailyTrainSeat {
 //    @TableField("`col`")
 //    private String col;
 
-    @TableField("row_index")
+//    @TableField("row_index")
     private String rowIndex;
 
-    @TableField("col_index")
+//    @TableField("col_index")
     private String colIndex;
 
 
