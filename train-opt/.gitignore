@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### nu11cat ###
+log/
+nacos/
+seata/
