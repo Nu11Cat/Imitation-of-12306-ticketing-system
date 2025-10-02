@@ -186,7 +186,7 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
                 confirmOrder.getId(), redisKey, seatTypeCode, stock);
 
         if (stock <= 0) {
-            LOG.info("Redis库存不足，订单失败，confirmOrderId: {}", confirmOrder.getId());
+            LOG.info("Redis库存不足，订单失败，confirmOrderId={}", confirmOrder.getId());
             confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
             updateStatus(confirmOrder);
             return;
@@ -195,7 +195,7 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         long remainStock = stockCounter.decrementAndGet();
         if (remainStock < 0) {
             stockCounter.incrementAndGet(); // 回滚
-            LOG.info("Redis库存不足（并发修正），订单失败，confirmOrderId: {}", confirmOrder.getId());
+            LOG.info("Redis库存不足（并发修正），订单失败，confirmOrderId={}", confirmOrder.getId());
             confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
             updateStatus(confirmOrder);
             return;
@@ -204,12 +204,17 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         LOG.info("Redis库存扣减成功，订单ID={}, 剩余库存={}", confirmOrder.getId(), remainStock);
 
         try {
-            // 数据库库存扣减 + 选座
+            // 从数据库查出余票记录
             DailyTrainTicket dailyTrainTicket = dailyTrainTicketService.selectByUnique(
                     req.getDate(), req.getTrainCode(), req.getStart(), req.getEnd());
+
+            // 数据库库存扣减
             reduceTickets(req, dailyTrainTicket);
 
-            List<DailyTrainSeat> finalSeatList = selectSeats(req);
+            // 选座
+            List<DailyTrainSeat> finalSeatList = selectSeats(req, dailyTrainTicket);
+
+            // 事务处理：修改座位售卖状态、余票表、订单表
             afterConfirmOrderService.afterDoConfirm(dailyTrainTicket, finalSeatList, req.getTickets(), confirmOrder);
 
             confirmOrder.setStatus(ConfirmOrderStatusEnum.SUCCESS.getCode());
@@ -235,25 +240,60 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         }
     }
 
-    private List<DailyTrainSeat> selectSeats(ConfirmOrderDoReq req) {
+
+    private List<DailyTrainSeat> selectSeats(ConfirmOrderDoReq req, DailyTrainTicket dailyTrainTicket) {
         List<DailyTrainSeat> finalSeatList = new ArrayList<>();
+        List<ConfirmOrderTicketReq> tickets = req.getTickets();
 
-        // 这里循环请求中每个票的座位类型
-        for (ConfirmOrderTicketReq ticketReq : req.getTickets()) {
-            String seatType = ticketReq.getSeatTypeCode();
-            String column = ticketReq.getSeat(); // 前端传的列（可为空）
-            List<Integer> offsetList = null;     // 根据业务可传偏移列表
-            Integer startIndex = null;           // 根据区间需求
-            Integer endIndex = null;
+        if (StrUtil.isNotBlank(tickets.get(0).getSeat())) {
+            // 有选座
+            List<SeatColEnum> colEnumList = SeatColEnum.getColsByType(tickets.get(0).getSeatTypeCode());
+            List<String> referSeatList = new ArrayList<>();
+            for (int i = 1; i <= 2; i++) {
+                for (SeatColEnum seatColEnum : colEnumList) {
+                    referSeatList.add(seatColEnum.getCode() + i);
+                }
+            }
 
-            getSeat(finalSeatList, req.getDate(), req.getTrainCode(), seatType, column, offsetList, startIndex, endIndex);
+            List<Integer> absoluteOffsetList = new ArrayList<>();
+            for (ConfirmOrderTicketReq ticketReq : tickets) {
+                int index = referSeatList.indexOf(ticketReq.getSeat());
+                absoluteOffsetList.add(index);
+            }
+
+            List<Integer> offsetList = new ArrayList<>();
+            for (Integer index : absoluteOffsetList) {
+                offsetList.add(index - absoluteOffsetList.get(0));
+            }
+
+            // 调用 getSeat
+            getSeat(finalSeatList,
+                    req.getDate(),
+                    req.getTrainCode(),
+                    tickets.get(0).getSeatTypeCode(),
+                    tickets.get(0).getSeat().substring(0, 1),
+                    offsetList,
+                    dailyTrainTicket.getStartIndex(),
+                    dailyTrainTicket.getEndIndex()
+            );
+
+        } else {
+            // 没选座
+            for (ConfirmOrderTicketReq ticketReq : tickets) {
+                getSeat(finalSeatList,
+                        req.getDate(),
+                        req.getTrainCode(),
+                        ticketReq.getSeatTypeCode(),
+                        null,
+                        null,
+                        dailyTrainTicket.getStartIndex(),
+                        dailyTrainTicket.getEndIndex()
+                );
+            }
         }
 
         return finalSeatList;
     }
-
-
-
 
     // 将 ConfirmOrder 转成 ConfirmOrderDoReq
     private ConfirmOrderDoReq convertToReq(ConfirmOrder confirmOrder) {
