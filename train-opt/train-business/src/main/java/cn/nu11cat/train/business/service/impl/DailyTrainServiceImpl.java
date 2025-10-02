@@ -6,6 +6,7 @@ import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.nu11cat.train.business.entity.DailyTrain;
+import cn.nu11cat.train.business.entity.DailyTrainTicket;
 import cn.nu11cat.train.business.entity.Train;
 import cn.nu11cat.train.business.mapper.DailyTrainMapper;
 import cn.nu11cat.train.business.req.DailyTrainQueryReq;
@@ -18,13 +19,18 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.redisson.api.RAtomicLong;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -59,6 +65,9 @@ public class DailyTrainServiceImpl extends ServiceImpl<DailyTrainMapper, DailyTr
 
     @Resource
     private SkTokenService skTokenService;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     public void save(DailyTrainSaveReq req) {
         DateTime now = DateTime.now();
@@ -146,6 +155,70 @@ public class DailyTrainServiceImpl extends ServiceImpl<DailyTrainMapper, DailyTr
         skTokenService.genDaily(date, train.getCode());
 
         LOG.info("生成日期【{}】车次【{}】的信息结束", DateUtil.formatDate(date), train.getCode());
+
+//        // 查询生成的票列表
+//        List<DailyTrainTicket> ticketList = dailyTrainTicketService.getByTrainAndDate(train.getCode(), date);
+//
+//        ticketList.forEach(this::initRedisStock);
+//
+//        LOG.info("初始化日期【{}】车次【{}】的redis库存结束");
+
+        // 查询生成的票列表，并初始化 Redis 库存
+        List<DailyTrainTicket> ticketList = dailyTrainTicketService.getByTrainAndDate(train.getCode(), date);
+
+        ticketList.forEach(ticket -> {
+            initRedisStock(ticket);
+
+            // 打印每种座位类型的库存
+            String dateStr = DateUtil.formatDate(ticket.getDate());
+            String trainCode = ticket.getTrainCode();
+            Map<String, Integer> seatTypeStockMap = Map.of(
+                    "1", ticket.getYdz(),
+                    "2", ticket.getEdz(),
+                    "3", ticket.getRw(),
+                    "4", ticket.getYw()
+            );
+
+            seatTypeStockMap.forEach((seatType, stock) -> {
+                if (stock != null && stock > 0) {
+                    String redisKey = "train_stock:" + dateStr + ":" + trainCode + ":" + seatType;
+                    LOG.info("Redis库存状态: key={} stock={}", redisKey, redissonClient.getAtomicLong(redisKey).get());
+                }
+            });
+        });
+
+        LOG.info("日期【{}】车次【{}】的 Redis 库存初始化完成", DateUtil.formatDate(date), train.getCode());
+
     }
+
+    /**
+     * 初始化单张票 Redis 库存
+     */
+    public void initRedisStock(DailyTrainTicket ticket) {
+        String dateStr = DateUtil.formatDate(ticket.getDate());
+        String trainCode = ticket.getTrainCode();
+
+        // 票种和对应库存映射
+        Map<String, Integer> seatTypeStockMap = new HashMap<>();
+        seatTypeStockMap.put("1", ticket.getYdz()); // 一等座
+        seatTypeStockMap.put("2", ticket.getEdz()); // 二等座
+        seatTypeStockMap.put("3", ticket.getRw());  // 软卧
+        seatTypeStockMap.put("4", ticket.getYw());  // 硬卧
+
+        for (Map.Entry<String, Integer> entry : seatTypeStockMap.entrySet()) {
+            String seatTypeCode = entry.getKey();
+            Integer stock = entry.getValue();
+            if (stock == null || stock <= 0) continue; // 没有库存就跳过
+
+            String redisKey = "train_stock:" + dateStr + ":" + trainCode + ":" + seatTypeCode;
+            RAtomicLong stockCounter = redissonClient.getAtomicLong(redisKey);
+
+            if (!stockCounter.isExists()) {
+                stockCounter.set(stock);
+                LOG.info("初始化 Redis 库存: key={} stock={}", redisKey, stock);
+            }
+        }
+    }
+
 
 }

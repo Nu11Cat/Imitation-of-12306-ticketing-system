@@ -35,6 +35,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
@@ -126,19 +127,20 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         MDC.put("LOG_ID", dto.getLogId());
         LOG.info("异步出票开始：{}", dto);
 
-        // 获取分布式锁
+        // Redisson 分布式锁 key
         String lockKey = RedisKeyPreEnum.CONFIRM_ORDER + "-" + DateUtil.formatDate(dto.getDate()) + "-" + dto.getTrainCode();
-        Boolean setIfAbsent = redisTemplate.opsForValue().setIfAbsent(lockKey, lockKey, 10, TimeUnit.SECONDS);
-        if (Boolean.TRUE.equals(setIfAbsent)) {
-            LOG.info("恭喜，抢到锁了！lockKey：{}", lockKey);
-        } else {
-            LOG.info("没抢到锁，有其它消费线程正在出票，不做任何处理");
-            return;
-        }
+        RLock lock = redissonClient.getLock(lockKey);
 
-        RLock lock = null;
+        boolean locked = false;
         try {
-            lock = redissonClient.getLock(lockKey);
+            // 尝试获取锁，最多等待5秒，锁10秒自动释放
+            locked = lock.tryLock(5, 10, TimeUnit.SECONDS);
+            if (!locked) {
+                LOG.info("未获取到锁，可能有其他线程在处理订单，直接返回");
+                return;
+            }
+
+            LOG.info("抢到锁，开始处理订单，lockKey：{}", lockKey);
 
             while (true) {
                 // 取确认订单表的记录，同日期车次，状态是I，分页处理，每次取N条
@@ -158,24 +160,115 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
                     LOG.info("本次处理{}条订单", list.size());
                 }
 
-                list.forEach(confirmOrder -> {
-                    try {
-                        sell(confirmOrder);
-                    } catch (BusinessException e) {
-                        if (e.getE().equals(BusinessExceptionEnum.CONFIRM_ORDER_TICKET_COUNT_ERROR)) {
-                            LOG.info("本订单余票不足，继续售卖下一个订单");
-                            confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
-                            updateStatus(confirmOrder);
-                        } else {
-                            throw e;
-                        }
-                    }
-                });
+                list.forEach(this::processOrder);
+
             }
+        } catch (InterruptedException e) {
+            LOG.error("获取分布式锁异常", e);
+            Thread.currentThread().interrupt();
         } finally {
             LOG.info("购票流程结束，释放锁！lockKey：{}", lockKey);
             redisTemplate.delete(lockKey);
         }
+    }
+
+    // 处理单个订单的方法
+    private void processOrder(ConfirmOrder confirmOrder) {
+        ConfirmOrderDoReq req = convertToReq(confirmOrder);
+        String seatTypeCode = req.getTickets().get(0).getSeatTypeCode();
+        String dateStr = DateUtil.formatDate(req.getDate()); // 统一日期格式
+        String redisKey = "train_stock:" + dateStr + ":" + req.getTrainCode() + ":" + seatTypeCode;
+
+        RAtomicLong stockCounter = redissonClient.getAtomicLong(redisKey);
+        long stock = stockCounter.get();
+
+        LOG.info("处理订单前 Redis 库存状态: confirmOrderId={}, redisKey={}, seatTypeCode={}, stock={}",
+                confirmOrder.getId(), redisKey, seatTypeCode, stock);
+
+        if (stock <= 0) {
+            LOG.info("Redis库存不足，订单失败，confirmOrderId: {}", confirmOrder.getId());
+            confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
+            updateStatus(confirmOrder);
+            return;
+        }
+
+        long remainStock = stockCounter.decrementAndGet();
+        if (remainStock < 0) {
+            stockCounter.incrementAndGet(); // 回滚
+            LOG.info("Redis库存不足（并发修正），订单失败，confirmOrderId: {}", confirmOrder.getId());
+            confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
+            updateStatus(confirmOrder);
+            return;
+        }
+
+        LOG.info("Redis库存扣减成功，订单ID={}, 剩余库存={}", confirmOrder.getId(), remainStock);
+
+        try {
+            // 数据库库存扣减 + 选座
+            DailyTrainTicket dailyTrainTicket = dailyTrainTicketService.selectByUnique(
+                    req.getDate(), req.getTrainCode(), req.getStart(), req.getEnd());
+            reduceTickets(req, dailyTrainTicket);
+
+            List<DailyTrainSeat> finalSeatList = selectSeats(req);
+            afterConfirmOrderService.afterDoConfirm(dailyTrainTicket, finalSeatList, req.getTickets(), confirmOrder);
+
+            confirmOrder.setStatus(ConfirmOrderStatusEnum.SUCCESS.getCode());
+            updateStatus(confirmOrder);
+
+        } catch (BusinessException e) {
+            stockCounter.incrementAndGet(); // 回滚 Redis
+            if (e.getE().equals(BusinessExceptionEnum.CONFIRM_ORDER_TICKET_COUNT_ERROR)) {
+                LOG.info("本订单余票不足，继续下一个订单，confirmOrderId={}", confirmOrder.getId());
+                confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
+                updateStatus(confirmOrder);
+            } else {
+                confirmOrder.setStatus(ConfirmOrderStatusEnum.INIT.getCode());
+                updateStatus(confirmOrder);
+                throw e;
+            }
+        } catch (Exception e) {
+            stockCounter.incrementAndGet(); // 回滚 Redis
+            confirmOrder.setStatus(ConfirmOrderStatusEnum.INIT.getCode());
+            updateStatus(confirmOrder);
+            LOG.error("订单处理异常，已回滚Redis库存，confirmOrderId={}", confirmOrder.getId(), e);
+            throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_EXCEPTION);
+        }
+    }
+
+    private List<DailyTrainSeat> selectSeats(ConfirmOrderDoReq req) {
+        List<DailyTrainSeat> finalSeatList = new ArrayList<>();
+
+        // 这里循环请求中每个票的座位类型
+        for (ConfirmOrderTicketReq ticketReq : req.getTickets()) {
+            String seatType = ticketReq.getSeatTypeCode();
+            String column = ticketReq.getSeat(); // 前端传的列（可为空）
+            List<Integer> offsetList = null;     // 根据业务可传偏移列表
+            Integer startIndex = null;           // 根据区间需求
+            Integer endIndex = null;
+
+            getSeat(finalSeatList, req.getDate(), req.getTrainCode(), seatType, column, offsetList, startIndex, endIndex);
+        }
+
+        return finalSeatList;
+    }
+
+
+
+
+    // 将 ConfirmOrder 转成 ConfirmOrderDoReq
+    private ConfirmOrderDoReq convertToReq(ConfirmOrder confirmOrder) {
+        ConfirmOrderDoReq req = new ConfirmOrderDoReq();
+        req.setMemberId(confirmOrder.getMemberId());
+        req.setDate(confirmOrder.getDate());
+        req.setTrainCode(confirmOrder.getTrainCode());
+        req.setStart(confirmOrder.getStart());
+        req.setEnd(confirmOrder.getEnd());
+        req.setDailyTrainTicketId(confirmOrder.getDailyTrainTicketId());
+        req.setTickets(JSON.parseArray(confirmOrder.getTickets(), ConfirmOrderTicketReq.class));
+        req.setImageCode("");
+        req.setImageCodeToken("");
+        req.setLogId("");
+        return req;
     }
 
     private void sell(ConfirmOrder confirmOrder) {

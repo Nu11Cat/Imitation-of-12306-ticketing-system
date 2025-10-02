@@ -10,6 +10,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.validation.Valid;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * <p>
@@ -30,4 +31,6 @@ public interface DailyTrainTicketService extends IService<DailyTrainTicket> {
     void genDaily(DailyTrain dailyTrain, Date date, String code);
 
     DailyTrainTicket selectByUnique(Date date, String trainCode, String start, String end);
+
+    List<DailyTrainTicket> getByTrainAndDate(String code, Date date);
 }

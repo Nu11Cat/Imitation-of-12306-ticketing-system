@@ -178,4 +178,13 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
 
         return dailyTrainTicketMapper.selectOne(wrapper);
     }
+
+    public List<DailyTrainTicket> getByTrainAndDate(String code, Date date) {
+        return dailyTrainTicketMapper.selectList(
+                new LambdaQueryWrapper<DailyTrainTicket>()
+                        .eq(DailyTrainTicket::getTrainCode, code)
+                        .eq(DailyTrainTicket::getDate, date)
+        );
+    }
+
 }
