@@ -1,4 +1,4 @@
-package cn.nu11cat.train.business.mq;// package com.jiawa.train.business.mq;
+package cn.nu11cat.train.business.mq;
 
 import cn.nu11cat.train.business.dto.ConfirmOrderMQDto;
 import cn.nu11cat.train.business.service.ConfirmOrderService;

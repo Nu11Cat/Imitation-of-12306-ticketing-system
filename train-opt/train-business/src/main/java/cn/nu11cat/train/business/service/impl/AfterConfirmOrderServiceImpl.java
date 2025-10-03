@@ -1,5 +1,6 @@
 package cn.nu11cat.train.business.service.impl;
 
+import cn.nu11cat.train.business.dto.AddMemberTicketMQDto;
 import cn.nu11cat.train.business.entity.ConfirmOrder;
 import cn.nu11cat.train.business.entity.DailyTrainSeat;
 import cn.nu11cat.train.business.entity.DailyTrainTicket;
@@ -7,19 +8,21 @@ import cn.nu11cat.train.business.enums.ConfirmOrderStatusEnum;
 import cn.nu11cat.train.business.feign.MemberFeign;
 import cn.nu11cat.train.business.mapper.ConfirmOrderMapper;
 import cn.nu11cat.train.business.mapper.DailyTrainSeatMapper;
-import cn.nu11cat.train.business.mapper.DailyTrainTicketMapper;
 import cn.nu11cat.train.business.mapper.cust.DailyTrainTicketMapperCust;
 import cn.nu11cat.train.business.req.ConfirmOrderTicketReq;
 import cn.nu11cat.train.business.service.AfterConfirmOrderService;
-import cn.nu11cat.train.common.req.MemberTicketReq;
 import cn.nu11cat.train.common.resp.CommonResp;
+import com.alibaba.fastjson.JSON;
 import io.seata.core.context.RootContext;
 import io.seata.spring.annotation.GlobalTransactional;
 import jakarta.annotation.Resource;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -39,6 +42,9 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
 
     @Resource
     private ConfirmOrderMapper confirmOrderMapper;
+
+    @Resource
+    private RocketMQTemplate rocketMQTemplate;
 
     /**
      * 选中座位后事务处理
@@ -91,7 +97,8 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
                     dailyTrainTicket.getStart(),
                     dailyTrainTicket.getEnd()
             );
-
+//            LOG.info(" 更新余票详情表：" + dailyTrainSeat);
+//            LOG.info(" 获取的 version：" + latestTicket.getVersion());
             // 更新余票详情表
             dailyTrainTicketMapperCust.updateCountBySellOptimistic(
                     dailyTrainSeat.getDate(),
@@ -104,29 +111,62 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
                     latestTicket.getVersion()
             );
 
-            // 调用会员服务接口
-            MemberTicketReq memberTicketReq = new MemberTicketReq();
-            memberTicketReq.setMemberId(confirmOrder.getMemberId());
-            memberTicketReq.setPassengerId(tickets.get(j).getPassengerId());
-            memberTicketReq.setPassengerName(tickets.get(j).getPassengerName());
-            memberTicketReq.setTrainDate(dailyTrainTicket.getDate());
-            memberTicketReq.setTrainCode(dailyTrainTicket.getTrainCode());
-            memberTicketReq.setCarriageIndex(dailyTrainSeat.getCarriageIndex());
-            memberTicketReq.setSeatRow(dailyTrainSeat.getRowIndex());
-            memberTicketReq.setSeatCol(dailyTrainSeat.getColIndex());
-            memberTicketReq.setStartStation(dailyTrainTicket.getStart());
-            memberTicketReq.setStartTime(dailyTrainTicket.getStartTime());
-            memberTicketReq.setEndStation(dailyTrainTicket.getEnd());
-            memberTicketReq.setEndTime(dailyTrainTicket.getEndTime());
-            memberTicketReq.setSeatType(dailyTrainSeat.getSeatType());
-
-            CommonResp<Object> commonResp = memberFeign.save(memberTicketReq);
-            LOG.info("调用member接口，返回：{}", commonResp);
-
             // 更新订单状态为成功
             confirmOrder.setStatus(ConfirmOrderStatusEnum.SUCCESS.getCode());
             confirmOrder.setUpdateTime(new Date());
             confirmOrderMapper.updateById(confirmOrder);
+
+//            // 调用会员服务接口
+//            MemberTicketReq memberTicketReq = new MemberTicketReq();
+//            memberTicketReq.setMemberId(confirmOrder.getMemberId());
+//            memberTicketReq.setPassengerId(tickets.get(j).getPassengerId());
+//            memberTicketReq.setPassengerName(tickets.get(j).getPassengerName());
+//            memberTicketReq.setTrainDate(dailyTrainTicket.getDate());
+//            memberTicketReq.setTrainCode(dailyTrainTicket.getTrainCode());
+//            memberTicketReq.setCarriageIndex(dailyTrainSeat.getCarriageIndex());
+//            memberTicketReq.setSeatRow(dailyTrainSeat.getRowIndex());
+//            memberTicketReq.setSeatCol(dailyTrainSeat.getColIndex());
+//            memberTicketReq.setStartStation(dailyTrainTicket.getStart());
+//            memberTicketReq.setStartTime(dailyTrainTicket.getStartTime());
+//            memberTicketReq.setEndStation(dailyTrainTicket.getEnd());
+//            memberTicketReq.setEndTime(dailyTrainTicket.getEndTime());
+//            memberTicketReq.setSeatType(dailyTrainSeat.getSeatType());
+//
+//            CommonResp<Object> commonResp = memberFeign.save(memberTicketReq);
+//            LOG.info("调用member接口，返回：{}", commonResp);
+
+            AddMemberTicketMQDto dto = new AddMemberTicketMQDto();
+            dto.setConfirmOrderId(confirmOrder.getId());
+            dto.setMemberId(confirmOrder.getMemberId());
+            dto.setTrainDate(dailyTrainTicket.getDate());
+            dto.setTrainCode(dailyTrainTicket.getTrainCode());
+            dto.setLogId(MDC.get("LOG_ID"));
+
+            List<AddMemberTicketMQDto.PassengerTicketInfo> ticketInfos = new ArrayList<>();
+            for (int i = 0; i < tickets.size(); i++) {
+                DailyTrainSeat seat = finalSeatList.get(i);
+                ConfirmOrderTicketReq ticket = tickets.get(i);
+
+                AddMemberTicketMQDto.PassengerTicketInfo info = new AddMemberTicketMQDto.PassengerTicketInfo();
+                info.setPassengerId(ticket.getPassengerId());
+                info.setPassengerName(ticket.getPassengerName());
+                info.setCarriageIndex(seat.getCarriageIndex());
+                info.setRowIndex(seat.getRowIndex());
+                info.setColIndex(seat.getColIndex());
+                info.setSeatType(seat.getSeatType());
+                info.setStartStation(dailyTrainTicket.getStart());
+                info.setStartTime(dailyTrainTicket.getStartTime());
+                info.setEndStation(dailyTrainTicket.getEnd());
+                info.setEndTime(dailyTrainTicket.getEndTime());
+
+
+                ticketInfos.add(info);
+            }
+            dto.setTickets(ticketInfos);
+
+            rocketMQTemplate.convertAndSend("ADD_MEMBER_TICKET", JSON.toJSONString(dto));
+            LOG.info("发送异步添加车票消息完成，orderId={}", confirmOrder.getId());
+
 
             // 模拟调用方出现异常
 //             Thread.sleep(10000);
