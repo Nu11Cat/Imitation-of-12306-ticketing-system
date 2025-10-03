@@ -28,16 +28,16 @@
             <!--    添加乐观锁-->
     <update id="updateCountBySellOptimistic">
         update daily_train_ticket set
-        <if test="seatTypeCode == '1'">
+        <if test="seatTypeCode == 1">
             ydz = ydz - 1,
         </if>
-        <if test="seatTypeCode == '2'">
+        <if test="seatTypeCode == 2">
             edz = edz - 1,
         </if>
-        <if test="seatTypeCode == '3'">
+        <if test="seatTypeCode == 3">
             rw = rw - 1,
         </if>
-        <if test="seatTypeCode == '4'">
+        <if test="seatTypeCode == 4">
             yw = yw - 1,
         </if>
         version = version + 1
