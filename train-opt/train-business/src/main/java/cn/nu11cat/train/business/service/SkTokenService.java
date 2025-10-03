@@ -30,5 +30,10 @@ public interface SkTokenService extends IService<SkToken> {
 
     void genDaily(Date date, String code);
 
-    boolean validSkToken(@NotNull(message = "【日期】不能为空") Date date, @NotBlank(message = "【车次编号】不能为空") String trainCode, Long id);
+    void initDailyToken(Date date, String trainCode, int capacity, int ratePerSecond);
+
+    boolean acquireToken(Date date, String trainCode, int size);
+
+    void releaseToken(Date date, String trainCode, int size);
+
 }

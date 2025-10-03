@@ -24,11 +24,13 @@ import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -59,6 +61,8 @@ public class SkTokenServiceImpl extends ServiceImpl<SkTokenMapper, SkToken> impl
     @Autowired
     private StringRedisTemplate redisTemplate;
 
+    private static final String KEY_PREFIX = "SK_TOKEN_COUNT";
+
     /**
      * 初始化
      */
@@ -88,6 +92,11 @@ public class SkTokenServiceImpl extends ServiceImpl<SkTokenMapper, SkToken> impl
         skToken.setCount(count);
 
         skTokenMapper.insert(skToken);
+
+        int ratePerSecond = 1500;
+        initDailyToken(date, trainCode, count, ratePerSecond);
+        LOG.info("令牌桶初始化，初始生成令牌数：{},每秒补充{}个", count, ratePerSecond);
+
     }
 
     public void save(SkTokenSaveReq req) {
@@ -184,4 +193,101 @@ public class SkTokenServiceImpl extends ServiceImpl<SkTokenMapper, SkToken> impl
             return true;
         }
     }
+    /**
+     * 初始化令牌桶（日志添加）
+     */
+    public void initDailyToken(Date date, String trainCode, int capacity, int ratePerSecond) {
+        String key = buildKey(date, trainCode);
+
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            connection.stringCommands().set(key.getBytes(), String.valueOf(capacity).getBytes());
+            connection.stringCommands().set((key + ":capacity").getBytes(),
+                    String.valueOf(capacity).getBytes());
+            connection.stringCommands().set((key + ":rate").getBytes(),
+                    String.valueOf(ratePerSecond).getBytes());
+            connection.stringCommands().set((key + ":time").getBytes(),
+                    String.valueOf(System.currentTimeMillis()).getBytes());
+            return null;
+        });
+
+        LOG.info("[令牌桶初始化] key={}, 容量={}, 速率={}/秒", key, capacity, ratePerSecond);
+    }
+
+    /**
+     * 获取令牌（日志增强）
+     */
+    public boolean acquireToken(Date date, String trainCode, int need) {
+        String key = buildKey(date, trainCode);
+        String capKey = key + ":capacity";
+        String rateKey = key + ":rate";
+        long now = System.currentTimeMillis();
+
+        String luaScript =
+                "local key = KEYS[1]\n" +
+                        "local capKey = KEYS[2]\n" +
+                        "local rateKey = KEYS[3]\n" +
+                        "local need = tonumber(ARGV[1])\n" +
+                        "local now = tonumber(ARGV[2])\n" +
+
+                        // 获取配置
+                        "local capacity = tonumber(redis.call('GET', capKey))\n" +
+                        "local rate = tonumber(redis.call('GET', rateKey))\n" +
+                        "local lastTime = tonumber(redis.call('GET', key..':time') or now)\n" +
+
+                        // 计算补充令牌
+                        "local timePassed = math.max(0, now - lastTime)\n" +
+                        "local tokensToAdd = math.floor(timePassed * rate / 1000)\n" +
+
+                        // 更新令牌
+                        "local current = tonumber(redis.call('GET', key) or 0)\n" +
+                        "current = math.min(capacity, current + tokensToAdd)\n" +
+                        "redis.call('SET', key..':time', now)\n" +
+
+                        // 扣减逻辑
+                        "if current >= need then\n" +
+                        "    redis.call('SET', key, current - need)\n" +
+                        "    return 1\n" +
+                        "else\n" +
+                        "    return 0\n" +
+                        "end";
+
+        Long result = redisTemplate.execute(
+                new DefaultRedisScript<>(luaScript, Long.class),
+                Arrays.asList(key, capKey, rateKey),
+                String.valueOf(need),
+                String.valueOf(now)
+        );
+
+        boolean success = result != null && result == 1;
+        if (success) {
+            LOG.info("[获取令牌成功] key={}, 消耗={}, 剩余={}",
+                    key, need, getCurrentTokens(key) - need);
+        } else {
+            LOG.info("[获取令牌失败] key={}, 需求={}, 当前剩余={}",
+                    key, need, getCurrentTokens(key));
+        }
+        return success;
+    }
+
+    /**
+     * 查询当前令牌数（私有方法，用于日志）
+     */
+    private long getCurrentTokens(String key) {
+        String val = redisTemplate.opsForValue().get(key);
+        return val == null ? 0 : Long.parseLong(val);
+    }
+
+    /**
+     * 释放令牌（下单失败时归还）
+     */
+    public void releaseToken(Date date, String trainCode, int count) {
+        String key = buildKey(date, trainCode);
+        redisTemplate.opsForValue().increment(key, count);
+        LOG.info("释放令牌: key={}, count={}", key, count);
+    }
+
+    private String buildKey(Date date, String trainCode) {
+        return KEY_PREFIX + "-" + DateUtil.formatDate(date) + "-" + trainCode;
+    }
+
 }

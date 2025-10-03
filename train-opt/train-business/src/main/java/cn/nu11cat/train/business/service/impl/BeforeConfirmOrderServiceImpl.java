@@ -51,22 +51,21 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
     public Long beforeDoConfirm(ConfirmOrderDoReq req) {
         Long id = null;
 
-//        for (int i = 0; i < req.getLineNumber() + 1; i++) {
-            req.setMemberId(LoginMemberContext.getId());
+        req.setMemberId(LoginMemberContext.getId());
+        Date date = req.getDate();
+        String trainCode = req.getTrainCode();
+        String start = req.getStart();
+        String end = req.getEnd();
+        List<ConfirmOrderTicketReq> tickets = req.getTickets();
 
-            // 校验令牌余量（可根据需求启用）
-            // boolean validSkToken = skTokenService.validSkToken(req.getDate(), req.getTrainCode(), LoginMemberContext.getId());
-            // if (!validSkToken) {
-            //     LOG.info("令牌校验不通过");
-            //     throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_SK_TOKEN_FAIL);
-            // }
+        // === 令牌校验 ===
+        boolean validSkToken = skTokenService.acquireToken(date, trainCode, tickets.size());
+        if (!validSkToken) {
+            LOG.info("用户 {} 抢票失败，令牌耗尽", req.getMemberId());
+            throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_SK_TOKEN_FAIL);
+        }
 
-            Date date = req.getDate();
-            String trainCode = req.getTrainCode();
-            String start = req.getStart();
-            String end = req.getEnd();
-            List<ConfirmOrderTicketReq> tickets = req.getTickets();
-
+        try {
             // 保存确认订单表，状态初始
             DateTime now = DateTime.now();
             ConfirmOrder confirmOrder = new ConfirmOrder();
@@ -82,7 +81,6 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
             confirmOrder.setStatus(ConfirmOrderStatusEnum.INIT.getCode());
             confirmOrder.setTickets(JSON.toJSONString(tickets));
 
-            // MyBatis-Plus 插入
             confirmOrderMapper.insert(confirmOrder);
 
             // 发送MQ排队购票
@@ -96,14 +94,16 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
             rocketMQTemplate.convertAndSend(RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
             LOG.info("排队购票，发送mq结束");
 
-            // 调用确认订单服务
-            //confirmOrderService.doConfirm(confirmOrderMQDto);
-
             id = confirmOrder.getId();
-//        }
+        } catch (Exception e) {
+            // 下单失败，释放令牌
+            skTokenService.releaseToken(date, trainCode, tickets.size());
+            throw e;
+        }
 
         return id;
     }
+
 
     /**
      * 降级方法，需包含限流方法的所有参数和BlockException参数
