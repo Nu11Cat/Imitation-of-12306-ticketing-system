@@ -7,6 +7,8 @@ import cn.nu11cat.train.business.resp.SkTokenQueryResp;
 import cn.nu11cat.train.common.resp.PageResp;
 import com.baomidou.mybatisplus.extension.service.IService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.util.Date;
 
@@ -27,4 +29,6 @@ public interface SkTokenService extends IService<SkToken> {
     void delete(Long id);
 
     void genDaily(Date date, String code);
+
+    boolean validSkToken(@NotNull(message = "【日期】不能为空") Date date, @NotBlank(message = "【车次编号】不能为空") String trainCode, Long id);
 }
