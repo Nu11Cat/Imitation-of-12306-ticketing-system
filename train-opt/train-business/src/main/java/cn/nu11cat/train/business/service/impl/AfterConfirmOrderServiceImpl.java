@@ -90,6 +90,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             }
             LOG.info("影响到达站区间：" + minEndIndex + "-" + maxEndIndex);
 
+            // 更新余票详情表（乐观锁）
             // 查最新余票记录，获取 version
             DailyTrainTicket latestTicket = dailyTrainTicketMapperCust.selectByUnique(
                     dailyTrainTicket.getDate(),
@@ -99,7 +100,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             );
 //            LOG.info(" 更新余票详情表：" + dailyTrainSeat);
 //            LOG.info(" 获取的 version：" + latestTicket.getVersion());
-            // 更新余票详情表
+
             dailyTrainTicketMapperCust.updateCountBySellOptimistic(
                     dailyTrainSeat.getDate(),
                     dailyTrainSeat.getTrainCode(),
@@ -110,6 +111,16 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
                     maxEndIndex,
                     latestTicket.getVersion()
             );
+
+//            // 更新余票详情表（无乐观锁）
+//            dailyTrainTicketMapperCust.updateCountBySell(
+//                    dailyTrainSeat.getDate(),
+//                    dailyTrainSeat.getTrainCode(),
+//                    dailyTrainSeat.getSeatType(),
+//                    minStartIndex,
+//                    maxStartIndex,
+//                    minEndIndex,
+//                    maxEndIndex);
 
             // 更新订单状态为成功
             confirmOrder.setStatus(ConfirmOrderStatusEnum.SUCCESS.getCode());
