@@ -208,7 +208,8 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
             DailyTrainTicket dailyTrainTicket = dailyTrainTicketService.selectByUnique(
                     req.getDate(), req.getTrainCode(), req.getStart(), req.getEnd());
 
-            // 数据库库存扣减
+            // 数据库库存扣减，快速校验总库存
+            //只是让流程更“安全”和“快速失败”，属于优化或冗余保护层
             reduceTickets(req, dailyTrainTicket);
 
             // 选座
@@ -216,9 +217,6 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
 
             // 事务处理：修改座位售卖状态、余票表、订单表
             afterConfirmOrderService.afterDoConfirm(dailyTrainTicket, finalSeatList, req.getTickets(), confirmOrder);
-
-            confirmOrder.setStatus(ConfirmOrderStatusEnum.SUCCESS.getCode());
-            updateStatus(confirmOrder);
 
         } catch (BusinessException e) {
             stockCounter.incrementAndGet(); // 回滚 Redis
@@ -295,7 +293,6 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         return finalSeatList;
     }
 
-    // 将 ConfirmOrder 转成 ConfirmOrderDoReq
     private ConfirmOrderDoReq convertToReq(ConfirmOrder confirmOrder) {
         ConfirmOrderDoReq req = new ConfirmOrderDoReq();
         req.setMemberId(confirmOrder.getMemberId());
@@ -309,97 +306,6 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         req.setImageCodeToken("");
         req.setLogId("");
         return req;
-    }
-
-    private void sell(ConfirmOrder confirmOrder) {
-        ConfirmOrderDoReq req = new ConfirmOrderDoReq();
-        req.setMemberId(confirmOrder.getMemberId());
-        req.setDate(confirmOrder.getDate());
-        req.setTrainCode(confirmOrder.getTrainCode());
-        req.setStart(confirmOrder.getStart());
-        req.setEnd(confirmOrder.getEnd());
-        req.setDailyTrainTicketId(confirmOrder.getDailyTrainTicketId());
-        req.setTickets(JSON.parseArray(confirmOrder.getTickets(), ConfirmOrderTicketReq.class));
-        req.setImageCode("");
-        req.setImageCodeToken("");
-        req.setLogId("");
-
-        LOG.info("将确认订单更新成处理中，避免重复处理，confirm_order.id: {}", confirmOrder.getId());
-        confirmOrder.setStatus(ConfirmOrderStatusEnum.PENDING.getCode());
-        updateStatus(confirmOrder);
-
-        Date date = req.getDate();
-        String trainCode = req.getTrainCode();
-        String start = req.getStart();
-        String end = req.getEnd();
-        List<ConfirmOrderTicketReq> tickets = req.getTickets();
-
-        DailyTrainTicket dailyTrainTicket = dailyTrainTicketService.selectByUnique(date, trainCode, start, end);
-        LOG.info("查出余票记录：{}", dailyTrainTicket);
-
-        reduceTickets(req, dailyTrainTicket);
-
-        List<DailyTrainSeat> finalSeatList = new ArrayList<>();
-        ConfirmOrderTicketReq ticketReq0 = tickets.get(0);
-        if (StrUtil.isNotBlank(ticketReq0.getSeat())) {
-            LOG.info("本次购票有选座");
-            List<SeatColEnum> colEnumList = SeatColEnum.getColsByType(ticketReq0.getSeatTypeCode());
-            LOG.info("本次选座的座位类型包含的列：{}", colEnumList);
-
-            List<String> referSeatList = new ArrayList<>();
-            for (int i = 1; i <= 2; i++) {
-                for (SeatColEnum seatColEnum : colEnumList) {
-                    referSeatList.add(seatColEnum.getCode() + i);
-                }
-            }
-            LOG.info("用于作参照的两排座位：{}", referSeatList);
-
-            List<Integer> offsetList = new ArrayList<>();
-            List<Integer> aboluteOffsetList = new ArrayList<>();
-            for (ConfirmOrderTicketReq ticketReq : tickets) {
-                int index = referSeatList.indexOf(ticketReq.getSeat());
-                aboluteOffsetList.add(index);
-            }
-            LOG.info("计算得到所有座位的绝对偏移值：{}", aboluteOffsetList);
-            for (Integer index : aboluteOffsetList) {
-                int offset = index - aboluteOffsetList.get(0);
-                offsetList.add(offset);
-            }
-            LOG.info("计算得到所有座位的相对第一个座位的偏移值：{}", offsetList);
-
-            getSeat(finalSeatList,
-                    date,
-                    trainCode,
-                    ticketReq0.getSeatTypeCode(),
-                    ticketReq0.getSeat().split("")[0],
-                    offsetList,
-                    dailyTrainTicket.getStartIndex(),
-                    dailyTrainTicket.getEndIndex()
-            );
-
-        } else {
-            LOG.info("本次购票没有选座");
-            for (ConfirmOrderTicketReq ticketReq : tickets) {
-                getSeat(finalSeatList,
-                        date,
-                        trainCode,
-                        ticketReq.getSeatTypeCode(),
-                        null,
-                        null,
-                        dailyTrainTicket.getStartIndex(),
-                        dailyTrainTicket.getEndIndex()
-                );
-            }
-        }
-
-        LOG.info("最终选座：{}", finalSeatList);
-
-        try {
-            afterConfirmOrderService.afterDoConfirm(dailyTrainTicket, finalSeatList, tickets, confirmOrder);
-        } catch (Exception e) {
-            LOG.error("保存购票信息失败", e);
-            throw new BusinessException(BusinessExceptionEnum.CONFIRM_ORDER_EXCEPTION);
-        }
     }
 
     public void updateStatus(ConfirmOrder confirmOrder) {

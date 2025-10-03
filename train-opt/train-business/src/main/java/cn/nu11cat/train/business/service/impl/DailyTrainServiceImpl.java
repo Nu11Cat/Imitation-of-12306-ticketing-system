@@ -213,10 +213,16 @@ public class DailyTrainServiceImpl extends ServiceImpl<DailyTrainMapper, DailyTr
             String redisKey = "train_stock:" + dateStr + ":" + trainCode + ":" + seatTypeCode;
             RAtomicLong stockCounter = redissonClient.getAtomicLong(redisKey);
 
-            if (!stockCounter.isExists()) {
-                stockCounter.set(stock);
-                LOG.info("初始化 Redis 库存: key={} stock={}", redisKey, stock);
-            }
+//            boolean success = stockCounter.compareAndSet(0, stock);
+//            if (success) {
+//                LOG.info("初始化 Redis 库存: key={} stock={}", redisKey, stock);
+//            } else {
+//                LOG.info("Redis 已存在 key={}，当前库存={}", redisKey, stockCounter.get());
+//            }
+            //测试用
+            stockCounter.set(stock);
+            LOG.info("覆盖初始化 Redis 库存: key={} stock={}", redisKey, stock);
+
         }
     }
 

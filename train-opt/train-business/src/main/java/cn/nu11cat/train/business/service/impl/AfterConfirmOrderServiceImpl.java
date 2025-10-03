@@ -54,7 +54,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
         for (int j = 0; j < finalSeatList.size(); j++) {
             DailyTrainSeat dailyTrainSeat = finalSeatList.get(j);
 
-            // MyBatis-Plus 更新座位售卖情况
+            // 更新座位售卖情况
             dailyTrainSeat.setUpdateTime(new Date());
             dailyTrainSeatMapper.updateById(dailyTrainSeat);
 
@@ -83,7 +83,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             }
             LOG.info("影响到达站区间：" + minEndIndex + "-" + maxEndIndex);
 
-            // 更新余票详情表（仍用自定义 Mapper，可用 MP 更新Wrapper替换）
+            // 更新余票详情表
             dailyTrainTicketMapperCust.updateCountBySell(
                     dailyTrainSeat.getDate(),
                     dailyTrainSeat.getTrainCode(),
@@ -113,7 +113,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             CommonResp<Object> commonResp = memberFeign.save(memberTicketReq);
             LOG.info("调用member接口，返回：{}", commonResp);
 
-            // 更新订单状态为成功 (MyBatis-Plus updateById)
+            // 更新订单状态为成功
             confirmOrder.setStatus(ConfirmOrderStatusEnum.SUCCESS.getCode());
             confirmOrder.setUpdateTime(new Date());
             confirmOrderMapper.updateById(confirmOrder);
