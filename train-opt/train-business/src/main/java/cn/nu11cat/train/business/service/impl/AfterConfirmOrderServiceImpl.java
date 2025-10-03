@@ -7,6 +7,7 @@ import cn.nu11cat.train.business.enums.ConfirmOrderStatusEnum;
 import cn.nu11cat.train.business.feign.MemberFeign;
 import cn.nu11cat.train.business.mapper.ConfirmOrderMapper;
 import cn.nu11cat.train.business.mapper.DailyTrainSeatMapper;
+import cn.nu11cat.train.business.mapper.DailyTrainTicketMapper;
 import cn.nu11cat.train.business.mapper.cust.DailyTrainTicketMapperCust;
 import cn.nu11cat.train.business.req.ConfirmOrderTicketReq;
 import cn.nu11cat.train.business.service.AfterConfirmOrderService;
@@ -83,15 +84,24 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             }
             LOG.info("影响到达站区间：" + minEndIndex + "-" + maxEndIndex);
 
+            // 查最新余票记录，获取 version
+            DailyTrainTicket latestTicket = dailyTrainTicketMapperCust.selectByUnique(
+                    dailyTrainTicket.getDate(),
+                    dailyTrainTicket.getTrainCode(),
+                    dailyTrainTicket.getStart(),
+                    dailyTrainTicket.getEnd()
+            );
+
             // 更新余票详情表
-            dailyTrainTicketMapperCust.updateCountBySell(
+            dailyTrainTicketMapperCust.updateCountBySellOptimistic(
                     dailyTrainSeat.getDate(),
                     dailyTrainSeat.getTrainCode(),
                     dailyTrainSeat.getSeatType(),
                     minStartIndex,
                     maxStartIndex,
                     minEndIndex,
-                    maxEndIndex
+                    maxEndIndex,
+                    latestTicket.getVersion()
             );
 
             // 调用会员服务接口

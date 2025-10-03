@@ -1,6 +1,7 @@
 package cn.nu11cat.train.business.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.Version;
 import lombok.Data;
 
 import java.util.Date;
@@ -37,5 +38,8 @@ public class DailyTrainSeat {
     private Date createTime;
 
     private Date updateTime;
+
+    @Version
+    private Integer version; // 乐观锁字段
 
 }

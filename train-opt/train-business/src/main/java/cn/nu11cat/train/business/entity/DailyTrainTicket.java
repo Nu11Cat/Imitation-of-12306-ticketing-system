@@ -1,5 +1,6 @@
 package cn.nu11cat.train.business.entity;
 
+import com.baomidou.mybatisplus.annotation.Version;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -56,5 +57,8 @@ public class DailyTrainTicket {
     private Date createTime;
 
     private Date updateTime;
+
+    @Version
+    private Integer version; // 乐观锁字段
 
 }
