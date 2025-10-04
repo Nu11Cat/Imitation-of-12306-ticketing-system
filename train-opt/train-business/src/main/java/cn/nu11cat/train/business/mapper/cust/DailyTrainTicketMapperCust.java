@@ -15,14 +15,14 @@ public interface DailyTrainTicketMapperCust {
                            @Param("minEndIndex") Integer minEndIndex,
                            @Param("maxEndIndex") Integer maxEndIndex);
 
-    void updateCountBySellOptimistic(@Param("date") Date date,
-                                     @Param("trainCode") String trainCode,
-                                     @Param("seatTypeCode") String seatTypeCode,
-                                     @Param("minStartIndex") Integer minStartIndex,
-                                     @Param("maxStartIndex") Integer maxStartIndex,
-                                     @Param("minEndIndex") Integer minEndIndex,
-                                     @Param("maxEndIndex") Integer maxEndIndex,
-                                     @Param("version") Integer version);
+    int updateCountBySellOptimistic(@Param("date") Date date,
+                                    @Param("trainCode") String trainCode,
+                                    @Param("seatTypeCode") String seatTypeCode,
+                                    @Param("minStartIndex") Integer minStartIndex,
+                                    @Param("maxStartIndex") Integer maxStartIndex,
+                                    @Param("minEndIndex") Integer minEndIndex,
+                                    @Param("maxEndIndex") Integer maxEndIndex,
+                                    @Param("version") Integer version);
 
     DailyTrainTicket selectByUnique(@Param("date") Date date,
                                     @Param("trainCode") String trainCode,
