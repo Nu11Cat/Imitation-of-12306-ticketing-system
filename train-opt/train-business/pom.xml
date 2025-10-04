@@ -95,8 +95,18 @@
     </dependencies>
 
     <build>
-        <finalName>/dist/${artifactId}</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal> <!-- 关键！强制生成可执行JAR -->
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -114,5 +124,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
