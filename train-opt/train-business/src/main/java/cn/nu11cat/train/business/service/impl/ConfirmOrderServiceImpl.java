@@ -18,6 +18,7 @@ import cn.nu11cat.train.business.enums.RedisKeyPreEnum;
 import cn.nu11cat.train.business.enums.SeatColEnum;
 import cn.nu11cat.train.business.enums.SeatTypeEnum;
 import cn.nu11cat.train.business.mapper.ConfirmOrderMapper;
+import cn.nu11cat.train.business.mapper.DailyTrainSeatMapper;
 import cn.nu11cat.train.business.req.ConfirmOrderDoReq;
 import cn.nu11cat.train.business.req.ConfirmOrderQueryReq;
 import cn.nu11cat.train.business.req.ConfirmOrderTicketReq;
@@ -37,6 +38,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
+import org.redisson.api.RScript;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -168,7 +171,9 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
             Thread.currentThread().interrupt();
         } finally {
             LOG.info("购票流程结束，释放锁！lockKey：{}", lockKey);
-            redisTemplate.delete(lockKey);
+            if (locked && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
     }
 
@@ -179,29 +184,52 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         String dateStr = DateUtil.formatDate(req.getDate()); // 统一日期格式
         String redisKey = "train_stock:" + dateStr + ":" + req.getTrainCode() + ":" + seatTypeCode;
 
-        RAtomicLong stockCounter = redissonClient.getAtomicLong(redisKey);
-        long stock = stockCounter.get();
+//        RAtomicLong stockCounter = redissonClient.getAtomicLong(redisKey);
+//        long stock = stockCounter.get();
+//
+//        LOG.info("处理订单前 Redis 库存状态: confirmOrderId={}, redisKey={}, seatTypeCode={}, stock={}",
+//                confirmOrder.getId(), redisKey, seatTypeCode, stock);
+//
+//        if (stock <= 0) {
+//            LOG.info("Redis库存不足，订单失败，confirmOrderId={}", confirmOrder.getId());
+//            confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
+//            updateStatus(confirmOrder);
+//            return;
+//        }
+//
+//        long remainStock = stockCounter.decrementAndGet();
+//        if (remainStock < 0) {
+//            stockCounter.incrementAndGet(); // 回滚
+//            LOG.info("Redis库存不足（并发修正），订单失败，confirmOrderId={}", confirmOrder.getId());
+//            confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
+//            updateStatus(confirmOrder);
+//            return;
+//        }
+//
+//        LOG.info("Redis库存扣减成功，订单ID={}, 剩余库存={}", confirmOrder.getId(), remainStock);
 
-        LOG.info("处理订单前 Redis 库存状态: confirmOrderId={}, redisKey={}, seatTypeCode={}, stock={}",
-                confirmOrder.getId(), redisKey, seatTypeCode, stock);
+        // 使用Lua脚本原子化扣减库存
+        String script =
+                "local stock = tonumber(redis.call('GET', KEYS[1])) " +
+                        "if stock > 0 then " +
+                        "    redis.call('DECR', KEYS[1]) " +
+                        "    return 1 " +
+                        "else " +
+                        "    return 0 " +
+                        "end";
+        Long success = redissonClient.getScript().eval(
+                RScript.Mode.READ_WRITE,
+                script,
+                RScript.ReturnType.INTEGER,
+                Collections.singletonList(redisKey)
+        );
 
-        if (stock <= 0) {
-            LOG.info("Redis库存不足，订单失败，confirmOrderId={}", confirmOrder.getId());
+        if (success == 0) {
+            LOG.info("Redis库存不足，订单失败");
             confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
             updateStatus(confirmOrder);
             return;
         }
-
-        long remainStock = stockCounter.decrementAndGet();
-        if (remainStock < 0) {
-            stockCounter.incrementAndGet(); // 回滚
-            LOG.info("Redis库存不足（并发修正），订单失败，confirmOrderId={}", confirmOrder.getId());
-            confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
-            updateStatus(confirmOrder);
-            return;
-        }
-
-        LOG.info("Redis库存扣减成功，订单ID={}, 剩余库存={}", confirmOrder.getId(), remainStock);
 
         try {
             // 从数据库查出余票记录
@@ -210,7 +238,7 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
 
             // 数据库库存扣减，快速校验总库存
             //只是让流程更“安全”和“快速失败”，属于优化或冗余保护层
-            reduceTickets(req, dailyTrainTicket);
+            //reduceTickets(req, dailyTrainTicket);
 
             // 选座
             List<DailyTrainSeat> finalSeatList = selectSeats(req, dailyTrainTicket);
@@ -219,7 +247,8 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
             afterConfirmOrderService.afterDoConfirm(dailyTrainTicket, finalSeatList, req.getTickets(), confirmOrder);
 
         } catch (BusinessException e) {
-            stockCounter.incrementAndGet(); // 回滚 Redis
+            //stockCounter.incrementAndGet(); // 回滚 Redis
+            redissonClient.getAtomicLong(redisKey).incrementAndGet();
             if (e.getE().equals(BusinessExceptionEnum.CONFIRM_ORDER_TICKET_COUNT_ERROR)) {
                 LOG.info("本订单余票不足，继续下一个订单，confirmOrderId={}", confirmOrder.getId());
                 confirmOrder.setStatus(ConfirmOrderStatusEnum.EMPTY.getCode());
@@ -230,7 +259,8 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
                 throw e;
             }
         } catch (Exception e) {
-            stockCounter.incrementAndGet(); // 回滚 Redis
+            //stockCounter.incrementAndGet(); // 回滚 Redis
+            redissonClient.getAtomicLong(redisKey).incrementAndGet();
             confirmOrder.setStatus(ConfirmOrderStatusEnum.INIT.getCode());
             updateStatus(confirmOrder);
             LOG.error("订单处理异常，已回滚Redis库存，confirmOrderId={}", confirmOrder.getId(), e);
