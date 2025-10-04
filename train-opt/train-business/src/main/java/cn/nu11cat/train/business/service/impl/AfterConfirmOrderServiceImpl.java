@@ -11,6 +11,8 @@ import cn.nu11cat.train.business.mapper.DailyTrainSeatMapper;
 import cn.nu11cat.train.business.mapper.cust.DailyTrainTicketMapperCust;
 import cn.nu11cat.train.business.req.ConfirmOrderTicketReq;
 import cn.nu11cat.train.business.service.AfterConfirmOrderService;
+import cn.nu11cat.train.common.exception.BusinessException;
+import cn.nu11cat.train.common.exception.BusinessExceptionEnum;
 import cn.nu11cat.train.common.resp.CommonResp;
 import com.alibaba.fastjson.JSON;
 import io.seata.core.context.RootContext;
@@ -63,7 +65,11 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
 
             // 更新座位售卖情况
             dailyTrainSeat.setUpdateTime(new Date());
-            dailyTrainSeatMapper.updateById(dailyTrainSeat);
+            //dailyTrainSeatMapper.updateById(dailyTrainSeat);
+            boolean updated = dailyTrainSeatMapper.updateById(dailyTrainSeat) > 0;
+            if (!updated) {
+                throw new BusinessException(BusinessExceptionEnum.Optimistic_Lock_Conflict);
+            }
 
             // 计算影响的库存区间
             Integer startIndex = dailyTrainTicket.getStartIndex();
@@ -101,7 +107,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
 //            LOG.info(" 更新余票详情表：" + dailyTrainSeat);
 //            LOG.info(" 获取的 version：" + latestTicket.getVersion());
 
-            dailyTrainTicketMapperCust.updateCountBySellOptimistic(
+            int affectedRows = dailyTrainTicketMapperCust.updateCountBySellOptimistic(
                     dailyTrainSeat.getDate(),
                     dailyTrainSeat.getTrainCode(),
                     dailyTrainSeat.getSeatType(),
@@ -111,6 +117,9 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
                     maxEndIndex,
                     latestTicket.getVersion()
             );
+            if (affectedRows == 0) {
+                throw new BusinessException(BusinessExceptionEnum.Optimistic_Lock_Conflict); // Seata会回滚事务
+            }
 
 //            // 更新余票详情表（无乐观锁）
 //            dailyTrainTicketMapperCust.updateCountBySell(
