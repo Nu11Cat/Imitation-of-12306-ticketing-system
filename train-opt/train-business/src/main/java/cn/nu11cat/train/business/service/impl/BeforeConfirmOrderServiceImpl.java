@@ -19,6 +19,8 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.client.producer.SendStatus;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
@@ -100,11 +102,48 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
 //            String idempotentKey = "mqfa:doConfirm:idempotent:" + confirmOrderMQDto.getLogId();
 //            Boolean firstConsume = redisTemplate.opsForValue().setIfAbsent(idempotentKey, "1", 10, TimeUnit.MINUTES);
 
-            LOG.info("排队购票，发送mq开始，消息：{}", reqJson);
-            rocketMQTemplate.convertAndSend(RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
-            LOG.info("排队购票，发送mq结束");
+            //异步发送消息
+//            LOG.info("排队购票，发送mq开始，消息：{}", reqJson);
+//            rocketMQTemplate.convertAndSend(RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
+//            LOG.info("排队购票，发送mq结束");
 
-//            // 调用确认订单服务
+
+
+            //同步发送消息，发送确认机制
+            // 幂等：防止重复发送消息
+            String idempotentKey = "mqfa:doConfirm:idempotent:" + confirmOrderMQDto.getLogId();
+            Boolean firstSend = redisTemplate.opsForValue().setIfAbsent(idempotentKey, "1", 10, TimeUnit.MINUTES);
+            if (Boolean.FALSE.equals(firstSend)) {
+                LOG.warn("重复发送MQ消息，logId={}", confirmOrderMQDto.getLogId());
+                return null;
+            }
+
+            LOG.info("排队购票，发送MQ开始，消息：{}", reqJson);
+
+            // 使用 RocketMQTemplate 同步发送
+            try {
+                SendResult sendResult = rocketMQTemplate.syncSend(
+                        RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
+
+                if (sendResult.getSendStatus() != SendStatus.SEND_OK) {
+                    // 发送失败，记录日志，可考虑重试或落库
+                    LOG.error("MQ消息发送失败：{}", sendResult);
+                    // 可删除幂等Key，让下一次重试重新发送
+                    redisTemplate.delete(idempotentKey);
+                    throw new RuntimeException("MQ消息发送失败");
+                }
+
+                LOG.info("排队购票，发送MQ成功：{}", sendResult);
+            } catch (Exception e) {
+                // 发送异常处理
+                redisTemplate.delete(idempotentKey); // 删除幂等Key，保证可重试
+                LOG.error("MQ消息发送异常", e);
+                throw e;
+            }
+
+
+
+//            // 调用确认订单服务（直接调用，无MQ）
 //            confirmOrderService.doConfirm(confirmOrderMQDto);
 
             id = confirmOrder.getId();
