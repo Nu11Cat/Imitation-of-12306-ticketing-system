@@ -5,6 +5,7 @@ import cn.nu11cat.train.business.entity.ConfirmOrder;
 import cn.nu11cat.train.business.entity.DailyTrainSeat;
 import cn.nu11cat.train.business.entity.DailyTrainTicket;
 import cn.nu11cat.train.business.enums.ConfirmOrderStatusEnum;
+import cn.nu11cat.train.business.enums.RocketMQTopicEnum;
 import cn.nu11cat.train.business.feign.MemberFeign;
 import cn.nu11cat.train.business.mapper.ConfirmOrderMapper;
 import cn.nu11cat.train.business.mapper.DailyTrainSeatMapper;
@@ -184,7 +185,7 @@ public class AfterConfirmOrderServiceImpl implements AfterConfirmOrderService {
             }
             dto.setTickets(ticketInfos);
 
-            rocketMQTemplate.convertAndSend("ADD_MEMBER_TICKET", JSON.toJSONString(dto));
+            rocketMQTemplate.convertAndSend(RocketMQTopicEnum.ADD_MEMBER_TICKET.getCode(), JSON.toJSONString(dto));
             LOG.info("发送异步添加车票消息完成，orderId={}", confirmOrder.getId());
 
 

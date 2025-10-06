@@ -2,7 +2,8 @@ package cn.nu11cat.train.business.enums;
 
 public enum RocketMQTopicEnum {
 
-    CONFIRM_ORDER("CONFIRM_ORDER", "确认订单排队");
+    CONFIRM_ORDER("CONFIRM_ORDER", "确认订单排队"),
+    ADD_MEMBER_TICKET("ADD_MEMBER_TICKET","添加用户车票");
 
     private String code;
 
