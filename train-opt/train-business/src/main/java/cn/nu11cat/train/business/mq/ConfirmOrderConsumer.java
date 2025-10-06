@@ -2,6 +2,7 @@ package cn.nu11cat.train.business.mq;
 
 import cn.nu11cat.train.business.dto.ConfirmOrderMQDto;
 import cn.nu11cat.train.business.service.ConfirmOrderService;
+import cn.nu11cat.train.common.exception.BusinessException;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import org.apache.rocketmq.common.message.MessageExt;
@@ -23,10 +24,19 @@ public class ConfirmOrderConsumer implements RocketMQListener<MessageExt> {
 
     @Override
     public void onMessage(MessageExt messageExt) {
-        byte[] body = messageExt.getBody();
-        ConfirmOrderMQDto dto = JSON.parseObject(new String(body), ConfirmOrderMQDto.class);
-        MDC.put("LOG_ID", dto.getLogId());
-        LOG.info("ROCKETMQ收到消息：{}", new String(body));
-        confirmOrderService.doConfirm(dto);
+        try {
+            byte[] body = messageExt.getBody();
+            ConfirmOrderMQDto dto = JSON.parseObject(new String(body), ConfirmOrderMQDto.class);
+            MDC.put("LOG_ID", dto.getLogId());
+            LOG.info("ROCKETMQ收到消息：{}", new String(body));
+            confirmOrderService.doConfirm(dto);
+        } catch (BusinessException e) {
+            // 业务逻辑错误（如库存不足），不重试
+            LOG.error("业务异常无需重试", e);
+        } catch (Exception e) {
+            // 系统异常（如数据库连接失败），触发框架重试
+            throw e;
+        }
+
     }
 }
