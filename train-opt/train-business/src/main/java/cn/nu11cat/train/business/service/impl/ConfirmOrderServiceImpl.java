@@ -130,6 +130,14 @@ public class ConfirmOrderServiceImpl extends ServiceImpl<ConfirmOrderMapper, Con
         MDC.put("LOG_ID", dto.getLogId());
         LOG.info("异步出票开始：{}", dto);
 
+        // 【幂等处理】防止重复消费
+        String idempotentKey = "mq:doConfirm:idempotent:" + dto.getLogId();
+        Boolean firstConsume = redisTemplate.opsForValue().setIfAbsent(idempotentKey, "1", 10, TimeUnit.MINUTES);
+        if (Boolean.FALSE.equals(firstConsume)) {
+            LOG.warn("重复消费消息，跳过执行，logId={}", dto.getLogId());
+            return;
+        }
+
         // Redisson 分布式锁 key
         String lockKey = RedisKeyPreEnum.CONFIRM_ORDER + "-" + DateUtil.formatDate(dto.getDate()) + "-" + dto.getTrainCode();
         RLock lock = redissonClient.getLock(lockKey);

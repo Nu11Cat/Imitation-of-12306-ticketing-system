@@ -20,14 +20,17 @@ import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.fastjson.JSON;
 import jakarta.annotation.Resource;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService {
@@ -45,6 +48,9 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
 
     @Resource
     private ConfirmOrderService confirmOrderService;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     @SentinelResource(value = "beforeDoConfirm", blockHandler = "beforeDoConfirmBlock")
     @Override
@@ -90,9 +96,16 @@ public class BeforeConfirmOrderServiceImpl implements BeforeConfirmOrderService 
             confirmOrderMQDto.setLogId(MDC.get("LOG_ID"));
             String reqJson = JSON.toJSONString(confirmOrderMQDto);
 
+            // 通过redis验证是否重复发送MQ消息
+//            String idempotentKey = "mqfa:doConfirm:idempotent:" + confirmOrderMQDto.getLogId();
+//            Boolean firstConsume = redisTemplate.opsForValue().setIfAbsent(idempotentKey, "1", 10, TimeUnit.MINUTES);
+
             LOG.info("排队购票，发送mq开始，消息：{}", reqJson);
             rocketMQTemplate.convertAndSend(RocketMQTopicEnum.CONFIRM_ORDER.getCode(), reqJson);
             LOG.info("排队购票，发送mq结束");
+
+//            // 调用确认订单服务
+//            confirmOrderService.doConfirm(confirmOrderMQDto);
 
             id = confirmOrder.getId();
         } catch (Exception e) {
