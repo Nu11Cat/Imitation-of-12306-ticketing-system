@@ -122,13 +122,13 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
     public PageResp<DailyTrainTicketQueryResp> queryList(DailyTrainTicketQueryReq req) {
         String key = buildCacheKey(req);
 
-        // ✅ 1. 防穿透：先查布隆过滤器
+        // 先查布隆过滤器
         if (!bloomFilter.contains(req.getTrainCode())) {
             LOG.warn("布隆过滤器判定为无效车次: {}", req.getTrainCode());
             return new PageResp<>(); // 直接返回空
         }
 
-        // ✅ 2. 查询缓存
+        // 查询缓存
         PageResp<DailyTrainTicketQueryResp> cacheValue =
                 (PageResp<DailyTrainTicketQueryResp>) redisTemplate.opsForValue().get(key);
         if (cacheValue != null) {
@@ -136,7 +136,7 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
             return cacheValue;
         }
 
-        // ✅ 3. 防击穿：互斥锁（Redisson）
+        // 防击穿d的互斥锁设计（Redisson）
         String lockKey = "lock:" + key;
         RLock lock = redissonClient.getLock(lockKey);
         boolean locked = false;
@@ -154,10 +154,10 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
                 return cacheValue;
             }
 
-            // ✅ 4. 查数据库
+            // 查数据库
             PageResp<DailyTrainTicketQueryResp> result = doQuery(req);
 
-            // ✅ 5. 防穿透（空值缓存）
+            // 防穿透（空值缓存）
             if (result == null || CollUtil.isEmpty(result.getList())) {
                 redisTemplate.opsForValue().set(
                         key, new PageResp<>(),
@@ -165,7 +165,7 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
                 return new PageResp<>();
             }
 
-            // ✅ 6. 防雪崩：过期时间随机化
+            // 防雪崩：过期时间随机化
             redisTemplate.opsForValue().set(
                     key, result,
                     60 + RandomUtil.randomInt(0, 30), TimeUnit.SECONDS);
