@@ -18,17 +18,15 @@ public class BloomInit {
     private static final Logger LOG = LoggerFactory.getLogger(DailyTrainTicketService.class);
 
     @Resource
-    private RedissonClient redissonClient;
+    private DailyTrainTicketMapper dailyTrainTicketMapper;
 
     @Resource
-    private DailyTrainTicketMapper dailyTrainTicketMapper;
+    private RBloomFilter<String> trainCodeBloomFilter;
 
     @PostConstruct
     public void init() {
-        RBloomFilter<String> bloomFilter = redissonClient.getBloomFilter("bloom:trainCode");
-        bloomFilter.tryInit(100000, 0.001); // 容量10w，误判率0.1%
         List<String> allTrainCodes = dailyTrainTicketMapper.selectAllTrainCodes();
-        LOG.info("布隆过滤器初始化,添加：{}", allTrainCodes);
-        allTrainCodes.forEach(bloomFilter::add);
+        allTrainCodes.forEach(trainCodeBloomFilter::add);
+        LOG.info("布隆过滤器初始化, 添加: {}", allTrainCodes);
     }
 }
