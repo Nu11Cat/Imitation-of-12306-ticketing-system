@@ -7,6 +7,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.EnumUtil;
 import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.nu11cat.train.business.entity.DailyTrain;
 import cn.nu11cat.train.business.entity.DailyTrainTicket;
 import cn.nu11cat.train.business.entity.TrainStation;
@@ -25,9 +26,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import jakarta.annotation.Resource;
+import org.redisson.api.RBloomFilter;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +40,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * <p>
@@ -58,6 +64,17 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
     @Resource
     private DailyTrainSeatService dailyTrainSeatService;
 
+    @Resource
+    private RedissonClient redissonClient;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Resource
+    private RBloomFilter<String> bloomFilter;
+
+    private static final String CACHE_PREFIX = "train_cache:ticket_list:";
+
     public void save(DailyTrainTicketSaveReq req) {
         DateTime now = DateTime.now();
         DailyTrainTicket dailyTrainTicket = BeanUtil.copyProperties(req, DailyTrainTicket.class);
@@ -72,8 +89,100 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
         }
     }
 
-    @Cacheable(value = "DailyTrainTicketService.queryList")
+//    @Cacheable(value = "DailyTrainTicketService.queryList")
+//    public PageResp<DailyTrainTicketQueryResp> queryList(DailyTrainTicketQueryReq req) {
+//        LambdaQueryWrapper<DailyTrainTicket> wrapper = new LambdaQueryWrapper<>();
+//        wrapper.orderByDesc(DailyTrainTicket::getId);
+//
+//        if (ObjUtil.isNotNull(req.getDate())) {
+//            wrapper.eq(DailyTrainTicket::getDate, req.getDate());
+//        }
+//        if (ObjUtil.isNotEmpty(req.getTrainCode())) {
+//            wrapper.eq(DailyTrainTicket::getTrainCode, req.getTrainCode());
+//        }
+//        if (ObjUtil.isNotEmpty(req.getStart())) {
+//            wrapper.eq(DailyTrainTicket::getStart, req.getStart());
+//        }
+//        if (ObjUtil.isNotEmpty(req.getEnd())) {
+//            wrapper.eq(DailyTrainTicket::getEnd, req.getEnd());
+//        }
+//
+//        LOG.info("查询页码：{}", req.getPage());
+//        LOG.info("每页条数：{}", req.getSize());
+//        Page<DailyTrainTicket> page = new Page<>(req.getPage(), req.getSize());
+//        Page<DailyTrainTicket> seatPage = dailyTrainTicketMapper.selectPage(page, wrapper);
+//
+//        List<DailyTrainTicketQueryResp> list = BeanUtil.copyToList(seatPage.getRecords(), DailyTrainTicketQueryResp.class);
+//        PageResp<DailyTrainTicketQueryResp> pageResp = new PageResp<>();
+//        pageResp.setTotal(seatPage.getTotal());
+//        pageResp.setList(list);
+//        return pageResp;
+//    }   throws InterruptedException
+
     public PageResp<DailyTrainTicketQueryResp> queryList(DailyTrainTicketQueryReq req) {
+        String key = buildCacheKey(req);
+
+        // ✅ 1. 防穿透：先查布隆过滤器
+        if (!bloomFilter.contains(req.getTrainCode())) {
+            LOG.warn("布隆过滤器判定为无效车次: {}", req.getTrainCode());
+            return new PageResp<>(); // 直接返回空
+        }
+
+        // ✅ 2. 查询缓存
+        PageResp<DailyTrainTicketQueryResp> cacheValue =
+                (PageResp<DailyTrainTicketQueryResp>) redisTemplate.opsForValue().get(key);
+        if (cacheValue != null) {
+            LOG.info("缓存命中: {}", key);
+            return cacheValue;
+        }
+
+        // ✅ 3. 防击穿：互斥锁（Redisson）
+        String lockKey = "lock:" + key;
+        RLock lock = redissonClient.getLock(lockKey);
+        boolean locked = false;
+        try {
+            locked = lock.tryLock(0, 10, TimeUnit.SECONDS);
+            if (!locked) {
+                LOG.info("缓存正在重建，直接返回空或旧数据");
+                return (PageResp<DailyTrainTicketQueryResp>)
+                        redisTemplate.opsForValue().get(key);
+            }
+
+            // Double Check：再次查缓存
+            cacheValue = (PageResp<DailyTrainTicketQueryResp>) redisTemplate.opsForValue().get(key);
+            if (cacheValue != null) {
+                return cacheValue;
+            }
+
+            // ✅ 4. 查数据库
+            PageResp<DailyTrainTicketQueryResp> result = doQuery(req);
+
+            // ✅ 5. 防穿透（空值缓存）
+            if (result == null || CollUtil.isEmpty(result.getList())) {
+                redisTemplate.opsForValue().set(
+                        key, new PageResp<>(),
+                        60 + RandomUtil.randomInt(0, 30), TimeUnit.SECONDS);
+                return new PageResp<>();
+            }
+
+            // ✅ 6. 防雪崩：过期时间随机化
+            redisTemplate.opsForValue().set(
+                    key, result,
+                    60 + RandomUtil.randomInt(0, 30), TimeUnit.SECONDS);
+
+            return result;
+
+        } catch (Exception e) {
+            LOG.error("查询车票信息异常", e);
+            throw new RuntimeException(e);
+        } finally {
+            if (locked && lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+
+    private PageResp<DailyTrainTicketQueryResp> doQuery(DailyTrainTicketQueryReq req) {
         LambdaQueryWrapper<DailyTrainTicket> wrapper = new LambdaQueryWrapper<>();
         wrapper.orderByDesc(DailyTrainTicket::getId);
 
@@ -90,8 +199,6 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
             wrapper.eq(DailyTrainTicket::getEnd, req.getEnd());
         }
 
-        LOG.info("查询页码：{}", req.getPage());
-        LOG.info("每页条数：{}", req.getSize());
         Page<DailyTrainTicket> page = new Page<>(req.getPage(), req.getSize());
         Page<DailyTrainTicket> seatPage = dailyTrainTicketMapper.selectPage(page, wrapper);
 
@@ -100,6 +207,11 @@ public class DailyTrainTicketServiceImpl extends ServiceImpl<DailyTrainTicketMap
         pageResp.setTotal(seatPage.getTotal());
         pageResp.setList(list);
         return pageResp;
+    }
+
+    private String buildCacheKey(DailyTrainTicketQueryReq req) {
+        return CACHE_PREFIX + req.getDate() + ":" + req.getTrainCode()
+                + ":" + req.getStart() + ":" + req.getEnd();
     }
 
     public void delete(Long id) {
